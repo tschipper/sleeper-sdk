@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Sleeper GM</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#141f31;--panel2:#1b2940;--text:#f3f6fb;--muted:#9aa9bd;--accent:#79d6b0;--line:#2a3950;--warn:#ffd27d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{padding:22px 16px 14px;background:linear-gradient(135deg,#14243a,#101827);border-bottom:1px solid var(--line)}.wrap{max-width:900px;margin:auto}h1{margin:0;font-size:25px;letter-spacing:-.5px}header p{margin:5px 0 14px;color:var(--muted)}select,button{font:inherit;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--panel2);color:var(--text)}select{width:100%}.tabs{display:flex;gap:8px;overflow:auto;padding:12px 16px;max-width:900px;margin:auto}.tabs button{white-space:nowrap;flex:1;min-width:max-content}.tabs button.active{background:var(--accent);color:#082019;border-color:var(--accent);font-weight:700}main{padding:0 16px 40px;max-width:900px;margin:auto}.status{color:var(--muted);font-size:13px;margin:4px 0 14px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;min-width:0}.card h2{font-size:16px;margin:0 0 10px}.big{font-size:26px;font-weight:750}.muted{color:var(--muted)}.player{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.player:last-child{border-bottom:0}.player strong{display:block;font-size:14px}.player small{color:var(--muted)}.pill{font-size:11px;background:#24364d;padding:3px 7px;border-radius:20px;white-space:nowrap;height:max-content}.section{margin:12px 0}.wide{grid-column:1/-1}.empty{padding:22px;text-align:center;color:var(--muted)}.refresh{float:right;border:0;background:transparent;color:var(--accent);padding:4px 0}.note{font-size:12px;color:var(--muted);margin-top:18px}.search{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;margin-bottom:10px}@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.wide{grid-column:span 2}}@media(max-width:380px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>🏈 Sleeper GM</h1><p>Your leagues, roster and waiver research in one place.</p><select id="league"><option value="1313702361549529088">League 1</option><option value="1313937831093080064">League 2</option></select></div></header>
+<nav class="tabs" aria-label="Sections"><button class="active" data-tab="overview">Overview</button><button data-tab="roster">My Roster</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Lab</button></nav>
+<main><div class="status" id="status">Ready to load your league. <button class="refresh" id="refresh">Refresh ↻</button></div><div id="content"><div class="empty">Choose a league and tap Refresh to load live Sleeper data.</div></div><p class="note">Data comes from Sleeper's public API. Waiver and trade ratings are early-stage estimates, not projections or guarantees. No Sleeper password is used.</p></main>
+<script>
+const $=s=>document.querySelector(s);let tab='overview',state={league:null,users:[],rosters:[],players:{},matchups:[],transactions:[],myRoster:null,ownerId:null};
+const posOrder={QB:0,RB:1,WR:2,TE:3,K:4,DEF:5};
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function player(id){return state.players[id]||{}}
+function playerName(id){const p=player(id);return p.full_name||p.first_name&&p.last_name?(p.full_name||p.first_name+' '+p.last_name):'Player '+id}
+function pos(id){return player(id).position||'—'}
+function card(title,body,cls=''){return '<section class="card '+cls+'"><h2>'+title+'</h2>'+body+'</section>'}
+function playerRows(ids,extra=''){return ids.map(id=>{let p=player(id);return '<div class="player"><div><strong>'+esc(playerName(id))+'</strong><small>'+esc([p.position,p.team].filter(Boolean).join(' · ')||'Position unknown')+'</small></div><span class="pill">'+esc(extra||p.status||'Rostered')+'</span></div>'}).join('')}
+function allRostered(){return new Set(state.rosters.flatMap(r=>r.players||[]).map(String))}
+function render(){
+const content=$('#content');if(!state.league){content.innerHTML='<div class="empty">No league loaded yet.</div>';return}
+const roster=state.myRoster||{players:[],starters:[]};const ids=(roster.players||[]).map(String).sort((a,b)=>(posOrder[pos(a)]??9)-(posOrder[pos(b)]??9)||playerName(a).localeCompare(playerName(b)));
+const rosterHtml=playerRows(ids);const team=state.users.find(u=>u.user_id===state.ownerId);const teamName=team?.metadata?.team_name||team?.display_name||'My Team';
+if(tab==='overview'){
+const starters=(roster.starters||[]).filter(x=>x&&x!=='0').map(String);
+const standings=[...state.rosters].sort((a,b)=>(b.settings?.wins||0)-(a.settings?.wins||0)||(b.settings?.fpts||0)-(a.settings?.fpts||0));
+content.innerHTML='<div class="grid">'+card('League', '<div class="big">'+esc(state.league.total_rosters||state.rosters.length)+'</div><div class="muted">Teams</div>')+card('Record','<div class="big">'+(roster.settings?.wins||0)+'–'+(roster.settings?.losses||0)+'</div><div class="muted">Wins / losses</div>')+card('Points for','<div class="big">'+Number(roster.settings?.fpts||0).toFixed(1)+'</div><div class="muted">Season total</div>')+card(esc(teamName),' <div class="muted">Rostered players</div><div class="big">'+ids.length+'</div>')+card('Starting lineup',starters.length?playerRows(starters):'<div class="muted">Sleeper has no starters set for this roster yet.</div>','wide')+card('Standings',standings.map((r,i)=>{let u=state.users.find(x=>x.user_id===r.owner_id);return '<div class="player"><div><strong>'+(i+1)+'. '+esc(u?.metadata?.team_name||u?.display_name||'Team '+r.roster_id)+'</strong><small>'+(r.settings?.wins||0)+'–'+(r.settings?.losses||0)+' · '+Number(r.settings?.fpts||0).toFixed(1)+' PF</small></div></div>'}).join(''),'wide')+'</div>';
+}else if(tab==='roster'){
+content.innerHTML='<div class="grid">'+card(esc(teamName)+' · '+ids.length+' players',rosterHtml,'wide')+'</div>';
+}else if(tab==='waivers'){
+const taken=allRostered();const pool=Object.entries(state.players).filter(([id,p])=>!taken.has(String(id))&&p&&p.active&&['QB','RB','WR','TE'].includes(p.position));
+const counts={QB:1,RB:2,WR:3,TE:4};pool.sort((a,b)=>(counts[a[1].position]??9)-(counts[b[1].position]??9)||(a[1].depth_chart_order||99)-(b[1].depth_chart_order||99)||String(a[1].full_name||'').localeCompare(String(b[1].full_name||'')));
+content.innerHTML='<input class="search" id="playerSearch" placeholder="Search available players…" /><div class="status">Available players are filtered against rosters. Rank is preliminary: depth-chart information first, not a points projection.</div><div class="grid" id="waiverList">'+card('Available players',pool.slice(0,100).map(([id,p])=>'<div class="player"><div><strong>'+esc(p.full_name||((p.first_name||'')+' '+(p.last_name||''))||'Unknown player')+'</strong><small>'+esc([p.position,p.team,p.status].filter(Boolean).join(' · '))+'</small></div><span class="pill">Free agent</span></div>').join('')||'<div class="empty">No available players found.</div>','wide')+'</div>';
+$('#playerSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('#waiverList .player').forEach(el=>el.style.display=el.innerText.toLowerCase().includes(q)?'flex':'none')});
+}else{
+content.innerHTML='<div class="grid">'+card('Trade Lab','<p>Pick players from either side to compare a trade. This first version can show your roster and league player pool; value scoring and pick-aware recommendations are the next upgrade.</p><p class="muted">A useful trade model needs reliable player projections and dynasty/redraft context. We will not label a trade “fair” using roster data alone.</p>','wide')+card('Your roster',rosterHtml,'wide')+'</div>';
+}
+}
+async function getJson(url){const r=await fetch(url);if(!r.ok)throw new Error('Sleeper API returned '+r.status+' for '+url.split('/').slice(-1)[0]);return r.json()}
+async function load(){const id=$('#league').value;$('#status').textContent='Loading league data…';$('#content').innerHTML='<div class="empty">Fetching league, rosters and player directory…</div>';
+try{
+const league=await getJson('https://api.sleeper.app/v1/league/'+id);
+const [users,rosters,players]=await Promise.all([getJson('https://api.sleeper.app/v1/league/'+id+'/users'),getJson('https://api.sleeper.app/v1/league/'+id+'/rosters'),getJson('https://api.sleeper.app/v1/players/nfl')]);
+state={...state,league,users,rosters,players};
+let saved=localStorage.getItem('sleeper_gm_owner_'+id);
+if(saved&&users.some(u=>u.user_id===saved))state.ownerId=saved;
+if(!state.ownerId){const choices=users.map(u=>({id:u.user_id,name:u.metadata?.team_name||u.display_name||u.username}));const picked=prompt('Which team is yours? Enter your Sleeper username or team name:\n'+choices.map(c=>c.name).join('\n'));const match=users.find(u=>[u.username,u.display_name,u.metadata?.team_name].some(v=>v&&v.toLowerCase()===String(picked||'').trim().toLowerCase()));state.ownerId=match?.user_id||users[0]?.user_id;if(state.ownerId)localStorage.setItem('sleeper_gm_owner_'+id,state.ownerId)}
+state.myRoster=rosters.find(r=>r.owner_id===state.ownerId)||rosters[0]||null;
+$('#status').textContent='Updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · '+(league.name||'Sleeper league');
+render();
+}catch(e){$('#status').textContent='Could not load data';$('#content').innerHTML='<div class="card"><h2>Connection issue</h2><p>'+esc(e.message)+'</p><p class="muted">If the player directory request is blocked, we can add a lightweight backend. Tap Refresh to try again.</p></div>'}
+}
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));render()}));
+$('#refresh').addEventListener('click',load);$('#league').addEventListener('change',()=>{state.ownerId=null;state.league=null;load()});
+</script>
+</body>
+</html>
