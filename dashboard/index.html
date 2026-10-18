@@ -51,7 +51,7 @@ const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},weeklyP
 const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
 function status(s){$("#status").textContent=s}
 const diagLines=[];
-function diag(s){diagLines.push(s);$("#diagtext").textContent=diagLines.slice(-16).join("\\n")}
+function diag(s){diagLines.push(s);const el=$("#diagtext");if(el)el.textContent=diagLines.slice(-16).join("\\n")}
 async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(url+" → HTTP "+r.status);return r.json()}
 function playerName(id){const p=state.players[id];if(!p)return "Player "+id;return p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id)}
 function userFor(roster){return state.users.find(u=>u.user_id===roster.owner_id)||{}}
