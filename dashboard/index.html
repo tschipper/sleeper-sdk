@@ -108,7 +108,7 @@ function render(){
    const isIDP=["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(playerPos);
    if(!positions.has(playerPos))continue;
    if(state.waiverMode==="ir"&&!String(p.injury_status||"").toLowerCase().includes("ir")&&!String(p.status||"").toLowerCase().includes("injured reserve"))continue;
-   if(state.waiverMode==="rookie"&&!(Number(p.years_exp)===0||Number(p.rookie_year)>=2025))continue;
+   if(state.waiverMode==="rookie"&&(!(Number(p.years_exp)>=0&&Number(p.years_exp)<=2||Number(p.rookie_year)>=2024)||isIDP||!["QB","RB","WR","TE"].includes(playerPos)))continue;
    if(state.waiverMode==="today"&&String(p.injury_status||"").toLowerCase().includes("ir"))continue;
    if(["Inactive","Retired"].includes(p.status)) continue;
    const name=p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id);
@@ -123,16 +123,17 @@ function render(){
    const projection=Number(state.weeklyProjection[String(id)]),ppg=Number(state.weeklyPPG[String(id)]);
    const productionScore=Math.max(0,Math.min(100,(Number.isFinite(projection)?projection:Number.isFinite(ppg)?ppg:0)*3));
    const roleScore=Math.max(0,Math.min(100,(Number(p.depth_chart_order)>0?Math.max(0,6-Number(p.depth_chart_order))*18:0)+(p.team?20:0)));
+   const prospectAge=Number(market?.age??p.age);const ageScore=Number.isFinite(prospectAge)?Math.max(0,100-prospectAge*5):50;const developmentScore=Math.round(marketScore*.35+roleScore*.25+productionScore*.15+ageScore*.25);
    const pickupScore=Math.round(need*.45+marketScore*.20+productionScore*.20+roleScore*.15);
    const change=market?.valueChange?.sf_dynasty?.days30;
    const trend=change==null?"Trend unavailable":change>0?"Trending up":change<0?"Trending down":"Holding steady";
    const trendIcon=change==null?"":change>0?" ↗":change<0?" ↘":" →";
    const age=Number(market?.age??p.age);
    const avgPoints=state.weeklyPPG[String(id)];const projectedPoints=state.weeklyProjection[String(id)];
-   free.push({id,p,name,market,value,need,marketScore,pickupScore,age,avgPoints,projectedPoints,trend,trendIcon,rank:Number(market?.rank?.sf_dynasty)||99999,dynastyRank:Number(market?.rank?.sf_dynasty)||null,depth:Number(p.depth_chart_order)||99});
+   free.push({id,p,name,market,value,need,marketScore,pickupScore,developmentScore,age,avgPoints,projectedPoints,trend,trendIcon,rank:Number(market?.rank?.sf_dynasty)||99999,dynastyRank:Number(market?.rank?.sf_dynasty)||null,depth:Number(p.depth_chart_order)||99});
   }
   free.sort((a,b)=>{
-    if(state.waiverMode==="rookie")return (Number(a.p.draft_round)||99)-(Number(b.p.draft_round)||99)||(Number(a.p.draft_pick)||999)-(Number(b.p.draft_pick)||999)||(Number(a.p.depth_chart_order)||99)-(Number(b.p.depth_chart_order)||99)||(Number(b.projectedPoints)||0)-(Number(a.projectedPoints)||0);
+    if(state.waiverMode==="rookie")return b.developmentScore-a.developmentScore||a.rank-b.rank||b.value-a.value||a.name.localeCompare(b.name);
     if(state.waiverMode==="ir")return (Number(b.projectedPoints)||0)-(Number(a.projectedPoints)||0)||b.pickupScore-a.pickupScore;
     return b.pickupScore-a.pickupScore||b.value-a.value||a.rank-b.rank||a.name.localeCompare(b.name)
   });
