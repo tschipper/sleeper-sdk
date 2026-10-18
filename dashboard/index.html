@@ -122,12 +122,13 @@ function render(){
  const projectedStarterPoints=starters.reduce((sum,id)=>sum+(Number.isFinite(state.weeklyProjection[String(id)])?state.weeklyProjection[String(id)]:0),0);
  const rebuildLabel=percentile>=70&&projectedStarterPoints>=100?"Contender":percentile>=70?"Strong dynasty roster":percentile>=40?"Middle of the pack":percentile>=20?"Rebuild candidate":"Rebuilding";
  const strengthLabel=state.marketAsOf?"Dynasty strength":"Projected starters";
+ const slotLabel=s=>({FLEX_IDP:"IDP Flex",IDP_FLEX:"IDP Flex",SUPER_FLEX:"Superflex",SUPERFLEX:"Superflex",REC_FLEX:"WR/TE/RB Flex",WRRB_FLEX:"RB/WR Flex",FLEX:"Flex",BN:"Bench",IR:"Injured Reserve",TAXI:"Taxi"}[String(s).toUpperCase()]||s);
  const positionClass=id=>{const p=pos(id);return ["QB","RB","WR","TE"].includes(p)?"position-"+p:p==="IDP"?"position-IDP":"position-FLEX"};
   const playerRows=(ids,emptyText)=>ids.length?ids.map(id=>{const projection=state.weeklyProjection[String(id)],p=state.players[id]||{},game=state.schedule[p.team]||null;const kickoff=game?.date?new Date(game.date).toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"}):"Kickoff TBD";const matchup=game?(game.home===p.team?"vs "+game.away:"@ "+game.home):"Matchup TBD";return '<div class="player-row"><div class="position-badge '+positionClass(id)+'">'+esc(pos(id))+'</div><div class="player-info"><div class="player-name">'+esc(playerName(id))+' <span class="player-team">('+esc(teamName(id))+')</span></div><div class="game-meta">'+esc(matchup)+' · '+esc(kickoff)+'</div>'+(p.injury_status?'<div class="player-meta">Injury: '+esc(p.injury_status)+'</div>':'')+'</div><div class="projection-box"><div class="projection-number">'+(Number.isFinite(projection)?projection.toFixed(1):"—")+'</div><div class="projection-label">proj pts</div></div></div>'}).join(''):'<div class="empty">'+emptyText+'</div>';
   const lineup=()=>{
    const slots=(state.league?.roster_positions||[]).filter(s=>!["BN","IR","TAXI","RESERVE"].includes(String(s).toUpperCase()));
    const canonical=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");
-   const slotLabel=s=>({FLEX_IDP:"IDP Flex",IDP_FLEX:"IDP Flex",SUPER_FLEX:"Superflex",SUPERFLEX:"Superflex",REC_FLEX:"WR/TE/RB Flex",WRRB_FLEX:"RB/WR Flex",FLEX:"Flex",BN:"Bench",IR:"Injured Reserve",TAXI:"Taxi"}[String(s).toUpperCase()]||s);
+
    const eligible=(slot,p)=>{const s=canonical(slot),pos=p?.position||"";if(["QB","RB","WR","TE","K","DEF"].includes(s))return pos===s;if(["FLEX","RECFLEX"].includes(s))return ["RB","WR","TE"].includes(pos);if(s==="WRRBFLEX")return ["RB","WR"].includes(pos);if(["SUPERFLEX","SUPERFLEX"].includes(s))return ["QB","RB","WR","TE"].includes(pos);if(["IDPFLEX","FLEXIDP"].includes(s))return ["IDP","DL","LB","DB","DE","DT","CB","S"].includes(pos);return false};
    const candidates=all.map(id=>({id,p:state.players[id]||{},proj:state.weeklyProjection[String(id)]})).filter(x=>Number.isFinite(x.proj));
    const ordered=slots.map((slot,i)=>({slot,i}));
@@ -144,7 +145,7 @@ function render(){
  (reserve.length?'<div class="section"><h2>Injured Reserve</h2>'+playerRows(reserve,"No IR players.")+'</div>':'')+
  (taxi.length?'<div class="section"><h2>Taxi Squad</h2>'+playerRows(taxi,"No taxi squad players.")+'</div>':'')+
  '<div class="section"><h2>League snapshot</h2><div class="team"><div class="teamhead"><span>League teams</span><span>'+state.rosters.length+'</span></div><div class="sub">Current roster data from Sleeper</div></div></div>';
-  const bestButton=$("#best-lineup");if(bestButton)bestButton.addEventListener("click",e=>{e.preventDefault();state.showOptimalLineup=!state.showOptimalLineup;render()},{once:true});
+  const bestButton=$("#best-lineup");if(bestButton)bestButton.onclick=e=>{e.preventDefault();state.showOptimalLineup=!state.showOptimalLineup;render()};
 }
 function pos(id){const p=state.players[id];return p?.position||"—"}
 function teamName(id){const p=state.players[id];return p?.team||"Free agent"}
