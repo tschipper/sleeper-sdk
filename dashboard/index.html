@@ -29,7 +29,8 @@ button{cursor:pointer;font-weight:650}button.primary{background:#075985;border-c
 .position-QB{background:#4b203c;color:#ffb4d1}.position-RB{background:#174b39;color:#a7f3c2}.position-WR{background:#123e63;color:#a8ddff}.position-TE{background:#57351d;color:#ffd0a0}.position-FLEX,.position-SF,.position-IDP{background:#38245e;color:#d8b8ff}.position-BENCH{background:#273449;color:#bdc9d9}
 .player-info{min-width:0}.player-name{font-size:14px;font-weight:750;line-height:1.25;overflow-wrap:anywhere}.player-team{font-size:11px;color:var(--muted);font-weight:500;margin-left:5px}.player-meta{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35}.game-meta{font-size:11px;color:#b7c9df;margin-top:4px;line-height:1.35}.projection-box{min-width:49px;text-align:center;padding:5px 5px;border-radius:10px;background:#1b2b42;border:1px solid #263b57}.projection-number{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}.projection-label{font-size:10px;color:var(--muted)}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}.section-head h2{border:0;padding:0}.section-total{font-size:12px;color:var(--muted);white-space:nowrap}
-.matchup-sides{display:grid;grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr);gap:5px;padding:7px 6px;align-items:stretch}.matchup-side{min-width:0;overflow:hidden}.matchup-center{display:flex;align-items:center;justify-content:center}.matchup-center .position-badge{width:36px;min-width:36px;padding:8px 1px;font-size:11px;border-radius:11px;align-self:center}.matchup-side .player-row{padding:8px 2px;gap:4px;align-items:flex-start;border:0;background:transparent;min-width:0}.matchup-side .player-info{min-width:0;flex:1}.matchup-side .player-name{font-size:12px;overflow-wrap:anywhere;line-height:1.2}.matchup-side .player-meta,.matchup-side .game-meta{font-size:10px;overflow-wrap:anywhere;line-height:1.3}.matchup-side .projection-box{min-width:42px;padding:4px 2px;flex-shrink:0}.matchup-side .projection-number{font-size:12px}.matchup-side .player-info-icon{display:none}.matchup-left .player-row{flex-direction:row-reverse;text-align:right}.matchup-left .player-warning,.matchup-left .injury-status{text-align:right}
+.matchup-sides{display:grid;grid-template-columns:minmax(0,1fr) 42px minmax(0,1fr);gap:7px;padding:10px 8px;align-items:stretch}.matchup-side{min-width:0;overflow:hidden}.matchup-center{display:flex;align-items:center;justify-content:center}.matchup-center .position-badge{width:40px;min-width:40px;padding:9px 1px;font-size:12px;border-radius:12px;align-self:center}.matchup-side .player-row{padding:10px 3px;gap:5px;align-items:flex-start;border:0;background:transparent;min-width:0}.matchup-side .player-info{min-width:0;flex:1}.matchup-side .player-name{font-size:14px;overflow-wrap:anywhere;line-height:1.25}.matchup-side .player-meta,.matchup-side .game-meta{font-size:11px;overflow-wrap:anywhere;line-height:1.4}.matchup-side .projection-box{min-width:48px;padding:5px 3px;flex-shrink:0}.matchup-side .projection-number{font-size:13px}.matchup-side .player-info-icon{display:none}.matchup-left .player-row{flex-direction:row-reverse;text-align:right}.matchup-left .player-warning,.matchup-left .injury-status{text-align:right}
+@media(max-width:420px){.matchup-sides{grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr);gap:4px;padding:8px 5px}.matchup-center .position-badge{width:36px;min-width:36px}.matchup-side .player-row{gap:3px;padding:9px 1px}.matchup-side .player-name{font-size:13px}.matchup-side .player-meta,.matchup-side .game-meta{font-size:10px}.matchup-side .projection-box{min-width:42px}.matchup-side .projection-number{font-size:12px}}
 
 .empty{padding:18px;color:var(--muted);font-size:14px}
 nav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
@@ -84,7 +85,7 @@ function render(){
   (roster?.players||[]).forEach(id=>{const p=state.players[id];if(p&&counts[p.position]!==undefined)counts[p.position]++});
   (roster?.starters||[]).forEach(id=>{const p=state.players[id];if(p&&starterCounts[p.position]!==undefined)starterCounts[p.position]++});
   const targets={QB:3,RB:5,WR:5,TE:2};
-  const needScore=pos=>{const target=targets[pos]||2,have=counts[pos]||0,starting=starterCounts[pos]||0;const minimumDepth=pos==="QB"?2:pos==="RB"||pos==="WR"?3:2;const shortage=Math.max(0,minimumDepth-have);const starterPressure=Math.max(0,1-starting/Math.max(1,pos==="QB"?1:pos==="TE"?1:2));const depthPressure=Math.max(0,(target-have)/target);return Math.round(Math.max(0,Math.min(100,shortage/minimumDepth*70+depthPressure*50+starterPressure*20)))};
+  const needScore=pos=>{const target=targets[pos]||2,have=counts[pos]||0,starting=starterCounts[pos]||0;const minimumDepth=pos==="QB"?2:pos==="RB"||pos==="WR"?3:2;const shortage=Math.max(0,minimumDepth-have);const starterTarget=pos==="QB"||pos==="TE"?1:2;const starterPressure=Math.max(0,1-starting/starterTarget);const depthPressure=Math.max(0,(target-have)/target);const scarcity=shortage/minimumDepth*55+depthPressure*35+starterPressure*25;return Math.round(Math.max(0,Math.min(100,scarcity)))};
   const free=[];
   for(const [id,p] of Object.entries(state.players)){
    if(!p||rostered.has(String(id))||!positions.has(p.position)||p.active===false) continue;
@@ -296,33 +297,31 @@ async function load(){
    const projections=await getJSON(url);summarize("Projection response",projections);
    const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
    const scoring=league.scoring_settings||{};
-   const statAliases={
-    pass_yd:["pass_yd","pass_yds"],pass_td:["pass_td"],pass_int:["pass_int"],pass_2pt:["pass_2pt"],
-    rush_yd:["rush_yd","rush_yds"],rush_td:["rush_td"],rush_2pt:["rush_2pt"],
-    rec:["rec"],rec_yd:["rec_yd","rec_yds"],rec_td:["rec_td"],rec_2pt:["rec_2pt"],
-    fum_lost:["fum_lost","fum_lost_yd"],fum_rec_td:["fum_rec_td"],sack:["sack"],pass_sack:["pass_sack"],
-    pass_cmp:["pass_cmp"],pass_att:["pass_att"],pass_inc:["pass_inc"],pass_fd:["pass_fd"],rush_fd:["rush_fd"],rec_fd:["rec_fd"],
-    st_td:["st_td"],st_fum_rec:["st_fum_rec"],st_fum_ret:["st_fum_ret"],st_ff:["st_ff"],st_fum_lost:["st_fum_lost"],
-    int:["int"],def_int:["def_int"],def_td:["def_td"],def_sack:["def_sack"],def_ff:["def_ff"],def_fum_rec:["def_fum_rec"],def_safe:["def_safe"],def_block:["def_block"],def_kr_td:["def_kr_td"],def_pr_td:["def_pr_td"]
-   };
+   const nonStatKeys=new Set(["player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status","pts_std","pts_half_ppr","pts_ppr"]);
    const customProjectionPoints=row=>{
-    let total=0,found=false;
-    for(const [setting,aliases] of Object.entries(statAliases)){
-     const multiplier=Number(scoring[setting]||0);if(!multiplier)continue;
-     const statKey=aliases.find(k=>row[k]!==undefined&&row[k]!==null);if(!statKey)continue;
-     const n=Number(row[statKey]);if(!Number.isFinite(n))continue;
-     total+=n*multiplier;found=true;
+    let total=0,matched=0;
+    for(const [key,multiplierValue] of Object.entries(scoring)){
+     const multiplier=Number(multiplierValue);
+     if(!Number.isFinite(multiplier)||multiplier===0||key.startsWith("pts_")||key.startsWith("adp_")||key.startsWith("pos_rank_")||nonStatKeys.has(key))continue;
+     if(!Object.prototype.hasOwnProperty.call(row,key))continue;
+     const value=Number(row[key]);if(!Number.isFinite(value))continue;
+     total+=value*multiplier;matched++;
     }
-    return found?total:null;
+    return matched?{points:total,matched}:null;
    };
+   const projectionDiagnostics={customScored:0,standardFallback:0,missingPoints:0};
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?p.stats:p;
     if(pid.startsWith("TEAM_"))continue;
     const custom=customProjectionPoints(row);
-    const raw=custom!==null?custom:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std);
-    if(raw===undefined||raw===null)continue;
-    const points=Number(raw);if(Number.isFinite(points))state.weeklyProjection[pid]=points;
+    const generic=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+    const raw=custom?custom.points:generic;
+    if(raw===undefined||raw===null){projectionDiagnostics.missingPoints++;continue}
+    const points=Number(raw);if(!Number.isFinite(points))continue;
+    state.weeklyProjection[pid]=points;
+    if(custom)projectionDiagnostics.customScored++;else projectionDiagnostics.standardFallback++;
    }
+   diag("Projection scoring: custom="+projectionDiagnostics.customScored+", fallback="+projectionDiagnostics.standardFallback+", missing="+projectionDiagnostics.missingPoints);
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
   }catch(err){diag("Projection ERROR: "+err.message)}
   diag("Player dictionary IDs="+Object.keys(state.players).length+"; PPG IDs="+Object.keys(state.weeklyPPG).length+"; projection IDs="+Object.keys(state.weeklyProjection).length);
