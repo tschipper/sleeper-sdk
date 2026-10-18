@@ -298,7 +298,7 @@ function renderDraft(content){
  if(posSel){posSel.value=state.draftPosition||"ALL";posSel.addEventListener("change",e=>{state.draftPosition=e.target.value;render()})}
  if(draftSel){draftSel.value=String(selected);draftSel.addEventListener("change",e=>{state.selectedDraft=e.target.value;state.draftSection="recaps";render()})}
  document.querySelectorAll("[data-draft-section]").forEach(b=>b.addEventListener("click",()=>{state.draftSection=b.dataset.draftSection;render()}));
- } catch(err) { console.error("Draft render failed:",err); content.innerHTML='<div class="section"><h2>Draft temporarily unavailable</h2><div class="empty">The draft view hit an error while building recommendations. Try Refresh; if it continues, send a screenshot so the error can be traced.</div></div>'; }
+ } catch(err) { console.error("Draft render failed:",err); const detail=esc(err?.message||String(err||"Unknown error")); content.innerHTML='<div class="section"><h2>Draft temporarily unavailable</h2><div class="empty">The draft view hit an error while building recommendations.</div><div class="sub" style="padding:12px;overflow-wrap:anywhere">Debug detail: <code>'+detail+'</code></div><button id="draft-retry" class="secondary">Try again</button></div>'; const retry=$("#draft-retry");if(retry)retry.addEventListener("click",()=>render()); }
 }
 function renderTrades(content){
  const team=state.rosters.find(x=>String(x.roster_id)===String(state.selectedRoster));
