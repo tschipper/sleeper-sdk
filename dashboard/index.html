@@ -135,7 +135,6 @@ async function load(){
   const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
-  try{
   // Stats/projections use api.sleeper.com, not the /v1 league API.
   state.weeklyPPG={};
   try{
