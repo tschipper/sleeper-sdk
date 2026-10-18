@@ -40,7 +40,7 @@ def main():
     for row in crosswalk_rows:
         gsis = (row.get("gsis_id") or row.get("gsisId") or row.get("gsis") or "").strip()
         sleeper = (row.get("sleeper_id") or row.get("sleeperId") or "").strip()
-        if gsis and sleeper:
+        if gsis and sleeper and gsis.upper() not in ("NA", "N/A") and sleeper.upper() not in ("NA", "N/A"):
             crosswalk[gsis] = sleeper
 
     rows = read_csv(STATS_URL)
