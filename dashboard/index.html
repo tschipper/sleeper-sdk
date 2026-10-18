@@ -136,23 +136,25 @@ async function load(){
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
   try{
-   const stats=await getJSON("https://api.sleeper.app/v1/stats/nfl/regular/"+season);
-   state.weeklyPPG={};
-   const statEntries=Array.isArray(stats)?stats.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(stats||{});
-   for(const [key,s] of statEntries){
-    const pid=String(s.player_id??s.playerId??s.id??key);
-    const pts=Number(s.pts_ppr??s.pts_half_ppr??s.pts_std);
-    const games=Number(s.gp??s.gms_active??s.games_played??s.games??0);
+  // Stats/projections use api.sleeper.com, not the /v1 league API.
+  state.weeklyPPG={};
+  try{
+   const stats=await getJSON("https://api.sleeper.com/stats/nfl/"+season+"?season_type=regular");
+   const entries=Array.isArray(stats)?stats.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(stats||{});
+   for(const [key,s] of entries){
+    const pid=String(s?.player_id??s?.playerId??s?.id??key);
+    const pts=Number(s?.pts_ppr);
+    const games=Number(s?.gp??s?.gms_active??s?.games_played??s?.games??0);
     if(pid&&Number.isFinite(pts)&&games>0)state.weeklyPPG[pid]=pts/games;
    }
   }catch(err){console.warn("Sleeper season stats unavailable",err);state.weeklyPPG={}}
+  state.weeklyProjection={};
   try{
-   const projections=await getJSON("https://api.sleeper.app/v1/projections/nfl/regular/"+season+"/"+week);
-   state.weeklyProjection={};
-   const projectionEntries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
-   for(const [key,p] of projectionEntries){
-    const pid=String(p.player_id??p.playerId??p.id??key);
-    const points=Number(p.pts_ppr??p.pts_half_ppr??p.pts_std);
+   const projections=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular");
+   const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
+   for(const [key,p] of entries){
+    const pid=String(p?.player_id??p?.playerId??p?.id??key);
+    const points=Number(p?.pts_ppr);
     if(pid&&Number.isFinite(points))state.weeklyProjection[pid]=points;
    }
   }catch(err){console.warn("Sleeper weekly projections unavailable",err);state.weeklyProjection={}}
