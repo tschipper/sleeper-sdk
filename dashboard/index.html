@@ -148,7 +148,8 @@ async function load(){
     if(!stats||typeof stats!=="object")continue;
     for(const [pid,s] of Object.entries(stats)){
      if(!s||typeof s!=="object"||!Object.prototype.hasOwnProperty.call(s,"pts_ppr"))continue;
-     const pts=Number(s.pts_ppr);
+     const row=s.stats&&typeof s.stats==="object"?s.stats:s;
+     const pts=Number(row.pts_ppr??row.pts_half_ppr??row.pts_std);
      if(!Number.isFinite(pts)||pid.startsWith("TEAM_"))continue;
      totals[pid]=(totals[pid]||0)+pts;
      games[pid]=(games[pid]||0)+1;
@@ -163,8 +164,11 @@ async function load(){
    const projectionEntries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
    for(const [key,p] of projectionEntries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key);
-    if(!p||typeof p!=="object"||!Object.prototype.hasOwnProperty.call(p,"pts_ppr")||pid.startsWith("TEAM_"))continue;
-    const points=Number(p.pts_ppr);
+    const row=p?.stats&&typeof p.stats==="object"?p.stats:p;
+    if(!row||typeof row!=="object"||pid.startsWith("TEAM_"))continue;
+    const raw=row.pts_ppr??row.pts_half_ppr??row.pts_std;
+    if(raw===undefined||raw===null)continue;
+    const points=Number(raw);
     if(Number.isFinite(points))state.weeklyProjection[pid]=points;
    }
    console.info("Sleeper projection rows:",Object.keys(state.weeklyProjection).length,"season/week:",season,week);
