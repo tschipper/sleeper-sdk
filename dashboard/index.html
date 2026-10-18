@@ -73,10 +73,11 @@ function render(){
   const positions=new Set(["QB","RB","WR","TE"]);
   const query=state.waiverSearch.trim().toLowerCase();
   const roster=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));
-  const counts={QB:0,RB:0,WR:0,TE:0};
+  const counts={QB:0,RB:0,WR:0,TE:0},starterCounts={QB:0,RB:0,WR:0,TE:0};
   (roster?.players||[]).forEach(id=>{const p=state.players[id];if(p&&counts[p.position]!==undefined)counts[p.position]++});
+  (roster?.starters||[]).forEach(id=>{const p=state.players[id];if(p&&starterCounts[p.position]!==undefined)starterCounts[p.position]++});
   const targets={QB:3,RB:5,WR:5,TE:2};
-  const needScore=pos=>Math.max(10,Math.min(100,((targets[pos]-counts[pos])/targets[pos])*100));
+  const needScore=pos=>{const target=targets[pos]||2,have=counts[pos]||0,starting=starterCounts[pos]||0;const minimumDepth=pos==="QB"?2:pos==="RB"||pos==="WR"?3:2;const shortage=Math.max(0,minimumDepth-have);const starterPressure=Math.max(0,1-starting/Math.max(1,pos==="QB"?1:pos==="TE"?1:2));const depthPressure=Math.max(0,(target-have)/target);return Math.round(Math.max(0,Math.min(100,shortage/minimumDepth*70+depthPressure*50+starterPressure*20)))};
   const free=[];
   for(const [id,p] of Object.entries(state.players)){
    if(!p||rostered.has(String(id))||!positions.has(p.position)||p.active===false) continue;
@@ -86,9 +87,9 @@ function render(){
    if(query&&!name.toLowerCase().includes(query)&&!(p.team||"").toLowerCase().includes(query)) continue;
    const market=state.marketPlayers[String(id)]||null;
    const value=Number(market?.value?.sf_dynasty)||0;
-   const marketScore=Math.max(0,Math.min(100,value/100));
+   const marketScore=Math.max(0,Math.min(100,Math.log10(value+1)*22));
    const need=needScore(p.position);
-   const pickupScore=Math.round(need*.6+marketScore*.4);
+   const pickupScore=Math.round(need*.75+marketScore*.25);
    const change=market?.valueChange?.sf_dynasty?.days30;
    const trend=change==null?"Trend unavailable":change>0?"Trending up":change<0?"Trending down":"Holding steady";
    const trendIcon=change==null?"":change>0?" ↗":change<0?" ↘":" →";
