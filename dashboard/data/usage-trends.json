@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "source": "nflverse stats_player_week; player ID crosswalk from DynastyProcess",
+  "season": 2026,
+  "latestWeekInSource": 0,
+  "generatedAt": "2026-10-18T23:25:08.160Z",
+  "playerCount": 0,
+  "players": {}
+}
