@@ -41,6 +41,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 </div>
 <button class="primary" id="refresh">↻ Refresh league data</button>
 <div class="status" id="status" role="status">Ready to load your league.</div>
+<details id="diag" class="section" style="margin:8px 0"><summary style="padding:10px 12px;cursor:pointer;color:var(--muted)">Data diagnostics (tap to expand)</summary><pre id="diagtext" style="white-space:pre-wrap;overflow-wrap:anywhere;padding:0 12px 12px;font-size:12px;color:var(--muted)">Waiting for refresh…</pre></details>
 <nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button></nav>
 <div id="content"></div>
 <p class="note">League and roster data from Sleeper. Market values: <a href="https://statsguyfantasy.com" target="_blank" rel="noopener" style="color:var(--accent)">Stats Guy Fantasy</a>. Pickup-fit scores are estimates, not fantasy-point projections. This app does not make roster or league changes.</p>
@@ -50,7 +51,9 @@ const $=s=>document.querySelector(s);
 const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},weeklyPPG:{},weeklyProjection:{},marketAsOf:"",marketError:"",selectedRoster:"",tab:"team",waiverPos:"ALL",waiverSearch:""};
 const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
 function status(s){$("#status").textContent=s}
-async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error("Sleeper API returned "+r.status);return r.json()}
+const diagLines=[];
+function diag(s){diagLines.push(s);$("#diagtext").textContent=diagLines.slice(-16).join("\\n")}
+async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(url+" → HTTP "+r.status);return r.json()}
 function playerName(id){const p=state.players[id];if(!p)return "Player "+id;return p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id)}
 function userFor(roster){return state.users.find(u=>u.user_id===roster.owner_id)||{}}
 function points(roster){const starters=(roster.starters||[]).length;return starters}
@@ -135,44 +138,39 @@ async function load(){
   const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
-  // Sleeper stats are keyed by player ID; weekly rows provide points but
-  // season totals do not reliably include games played, so calculate PPG from weeks.
-  state.weeklyPPG={};
+  diagLines.length=0;diag("Season/week from Sleeper: "+season+" / "+week);
+  state.weeklyPPG={};state.weeklyProjection={};
+  const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
-   const totals={},games={};
-   const lastWeek=Math.max(1,Math.min(week,18));
-   const statWeeks=await Promise.all(Array.from({length:lastWeek},(_,i)=>
-    getJSON("https://api.sleeper.com/stats/nfl/"+season+"/"+(i+1)+"?season_type=regular").catch(err=>{console.warn("Sleeper stats week "+(i+1)+" unavailable",err);return null})
-   ));
-   for(const stats of statWeeks){
-    if(!stats||typeof stats!=="object")continue;
+   const totals={},counts={},lastWeek=Math.max(1,Math.min(week,18));
+   const statWeeks=await Promise.all(Array.from({length:lastWeek},(_,i)=>getJSON("https://api.sleeper.com/stats/nfl/"+season+"/"+(i+1)+"?season_type=regular").catch(err=>{diag("Stats week "+(i+1)+" ERROR: "+err.message);return null})));
+   for(let wi=0;wi<statWeeks.length;wi++){
+    const stats=statWeeks[wi];if(!stats||typeof stats!=="object")continue;
+    if(wi===0)summarize("Stats response",stats);
     for(const [pid,s] of Object.entries(stats)){
-     if(!s||typeof s!=="object"||!Object.prototype.hasOwnProperty.call(s,"pts_ppr"))continue;
-     const row=s.stats&&typeof s.stats==="object"?s.stats:s;
-     const pts=Number(row.pts_ppr??row.pts_half_ppr??row.pts_std);
-     if(!Number.isFinite(pts)||pid.startsWith("TEAM_"))continue;
-     totals[pid]=(totals[pid]||0)+pts;
-     games[pid]=(games[pid]||0)+1;
+     const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
+     const raw=row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+     if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
+     const pts=Number(raw);if(!Number.isFinite(pts))continue;
+     totals[pid]=(totals[pid]||0)+pts;counts[pid]=(counts[pid]||0)+1;
     }
    }
-   for(const [pid,total] of Object.entries(totals))if(games[pid]>0)state.weeklyPPG[pid]=total/games[pid];
-   console.info("Sleeper PPG rows:",Object.keys(state.weeklyPPG).length,"weeks checked:",lastWeek);
-  }catch(err){console.warn("Sleeper weekly stats unavailable",err);state.weeklyPPG={}}
-  state.weeklyProjection={};
+   for(const [pid,total] of Object.entries(totals))if(counts[pid])state.weeklyPPG[pid]=total/counts[pid];
+   diag("PPG player rows parsed="+Object.keys(state.weeklyPPG).length);
+  }catch(err){diag("Stats parsing ERROR: "+err.message)}
   try{
-   const projections=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular");
-   const projectionEntries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
-   for(const [key,p] of projectionEntries){
-    const pid=String(p?.player_id??p?.playerId??p?.id??key);
-    const row=p?.stats&&typeof p.stats==="object"?p.stats:p;
-    if(!row||typeof row!=="object"||pid.startsWith("TEAM_"))continue;
-    const raw=row.pts_ppr??row.pts_half_ppr??row.pts_std;
-    if(raw===undefined||raw===null)continue;
-    const points=Number(raw);
-    if(Number.isFinite(points))state.weeklyProjection[pid]=points;
+   const url="https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular";
+   const projections=await getJSON(url);summarize("Projection response",projections);
+   const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
+   for(const [key,p] of entries){
+    const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?p.stats:p;
+    const raw=row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+    if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
+    const points=Number(raw);if(Number.isFinite(points))state.weeklyProjection[pid]=points;
    }
-   console.info("Sleeper projection rows:",Object.keys(state.weeklyProjection).length,"season/week:",season,week);
-  }catch(err){console.warn("Sleeper weekly projections unavailable",err);state.weeklyProjection={}}
+   diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
+  }catch(err){diag("Projection ERROR: "+err.message)}
+  diag("Player dictionary IDs="+Object.keys(state.players).length+"; PPG IDs="+Object.keys(state.weeklyPPG).length+"; projection IDs="+Object.keys(state.weeklyProjection).length);
   status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
   render();
  }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
