@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Sleeper GM</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#141f31;--panel2:#1b2940;--line:#2b3a52;--text:#edf3fb;--muted:#9fb0c7;--accent:#7dd3fc;--green:#86efac;--red:#fca5a5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:22px 18px 16px;background:linear-gradient(140deg,#15263e,#0b1220);border-bottom:1px solid var(--line)}
+.wrap{max-width:900px;margin:auto}h1{margin:0;font-size:25px;letter-spacing:-.5px}header p{margin:5px 0 0;color:var(--muted);font-size:13px}
+main{max-width:900px;margin:auto;padding:16px; padding-bottom:40px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%;min-height:46px}
+button{cursor:pointer;font-weight:650}button.primary{background:#075985;border-color:#0284c7}
+.status{color:var(--muted);font-size:13px;padding:8px 2px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.card,.section{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:13px}
+.kicker{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.value{font-size:22px;font-weight:750;margin-top:3px;overflow-wrap:anywhere}
+.section{margin-top:12px;padding:0;overflow:hidden}.section h2{font-size:16px;margin:0;padding:14px;border-bottom:1px solid var(--line)}
+.team{padding:12px 14px;border-bottom:1px solid #25334a}.team:last-child{border-bottom:0}
+.teamhead{display:flex;justify-content:space-between;gap:12px;font-weight:700}.sub{font-size:12px;color:var(--muted);margin-top:3px}
+.pill{font-size:11px;border:1px solid var(--line);padding:3px 7px;border-radius:99px;color:var(--muted);white-space:nowrap}
+.empty{padding:18px;color:var(--muted);font-size:14px}
+nav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+nav button{font-size:13px;padding:10px 5px;min-height:42px}
+nav button.active{border-color:var(--accent);color:var(--accent);background:#102a3a}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+@media(max-width:420px){.cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.card{padding:10px}.value{font-size:18px}.controls{grid-template-columns:1fr}.teamhead{font-size:14px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>🏈 Sleeper GM</h1><p>Your mobile fantasy football command center</p></div></header>
+<main>
+<div class="controls">
+  <div><label for="league">League</label><select id="league"><option value="1313702361549529088">League 1</option><option value="1313937831093080064">League 2</option></select></div>
+  <div><label for="team">Team</label><select id="team"><option value="">Loading teams…</option></select></div>
+</div>
+<button class="primary" id="refresh">↻ Refresh league data</button>
+<div class="status" id="status" role="status">Ready to load your league.</div>
+<nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button></nav>
+<div id="content"></div>
+<p class="note">Data is read directly from Sleeper’s public API. Recommendations will be added after the live roster view is verified. This app does not make roster or league changes.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const state={league:null,rosters:[],users:[],players:{},selectedRoster:"",tab:"team"};
+const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
+function status(s){$("#status").textContent=s}
+async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error("Sleeper API returned "+r.status);return r.json()}
+function playerName(id){const p=state.players[id];if(!p)return "Player "+id;return p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id)}
+function userFor(roster){return state.users.find(u=>u.user_id===roster.owner_id)||{}}
+function points(roster){const starters=(roster.starters||[]).length;return starters}
+function render(){
+ const content=$("#content");
+ if(state.tab==="waivers"){content.innerHTML='<div class="section"><h2>Waiver Wire</h2><div class="empty">Next milestone: load available players, then rank pickups against your roster and league settings.</div></div>';return}
+ if(state.tab==="trades"){content.innerHTML='<div class="section"><h2>Trade Analyzer</h2><div class="empty">Next milestone: compare proposed players and picks using your league format, roster needs, and future value.</div></div>';return}
+ const r=state.rosters.find(x=>String(x.roster_id)===String(state.selectedRoster));
+ if(!r){content.innerHTML='<div class="section"><div class="empty">Choose a team to view its roster.</div></div>';return}
+ const starters=r.starters||[], reserve=r.reserve||[], taxi=r.taxi||[], all=r.players||[];
+ const startersSet=new Set(starters);
+ const bench=all.filter(id=>!startersSet.has(id)&&!reserve.includes(id)&&!taxi.includes(id));
+ const user=userFor(r);
+ const owner=user.display_name||user.username||("Roster "+r.roster_id);
+ const wins=r.settings?.wins??0, losses=r.settings?.losses??0, ties=r.settings?.ties??0;
+ const record=wins+"-"+losses+(ties?"-"+ties:"");
+ const playerRows=(ids,emptyText)=>ids.length?ids.map(id=>'<div class="team"><div class="teamhead"><span>'+esc(playerName(id))+'</span><span class="pill">'+esc(pos(id))+'</span></div><div class="sub">'+esc(teamName(id))+'</div></div>').join(''):'<div class="empty">'+emptyText+'</div>';
+ content.innerHTML='<div class="cards"><div class="card"><div class="kicker">Record</div><div class="value">'+record+'</div></div><div class="card"><div class="kicker">Rostered</div><div class="value">'+all.length+'</div></div><div class="card"><div class="kicker">Starters</div><div class="value">'+starters.length+'</div></div></div>'+
+ '<div class="section"><h2>'+esc(owner)+' · Starters</h2>'+playerRows(starters,"No starters listed.")+'</div>'+
+ '<div class="section"><h2>Bench</h2>'+playerRows(bench,"No bench players listed.")+'</div>'+
+ (reserve.length?'<div class="section"><h2>Injured Reserve</h2>'+playerRows(reserve,"No IR players.")+'</div>':'')+
+ (taxi.length?'<div class="section"><h2>Taxi Squad</h2>'+playerRows(taxi,"No taxi squad players.")+'</div>':'')+
+ '<div class="section"><h2>League snapshot</h2><div class="team"><div class="teamhead"><span>League teams</span><span>'+state.rosters.length+'</span></div><div class="sub">Current roster data from Sleeper</div></div></div>';
+}
+function pos(id){const p=state.players[id];return p?.position||"—"}
+function teamName(id){const p=state.players[id];return p?.team||"Free agent"}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function load(){
+ const id=$("#league").value;state.tab=document.querySelector("nav button.active")?.dataset.tab||"team";
+ $("#content").innerHTML="";status("Loading league, rosters, and player data…");
+ try{
+  const league=await getJSON("https://api.sleeper.app/v1/league/"+id);
+  const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);
+  state.league=league;state.rosters=rosters;state.users=users;
+  $("#team").innerHTML=rosters.map(r=>{const u=users.find(x=>x.user_id===r.owner_id)||{};return '<option value="'+r.roster_id+'">'+esc(u.display_name||u.username||("Roster "+r.roster_id))+'</option>'}).join("");
+  if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
+  $("#team").value=state.selectedRoster;
+  status("League loaded. Fetching player names…");
+  if(!Object.keys(state.players).length){state.players=await getJSON("https://api.sleeper.app/v1/players/nfl")}
+  status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
+  render();
+ }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
+}
+$("#league").addEventListener("change",()=>{state.selectedRoster="";load()});
+$("#team").addEventListener("change",e=>{state.selectedRoster=e.target.value;render()});
+$("#refresh").addEventListener("click",load);
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));state.tab=b.dataset.tab;render()}));
+load();
+</script>
+</body></html>
