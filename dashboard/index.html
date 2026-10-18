@@ -27,7 +27,7 @@ button{cursor:pointer;font-weight:650}button.primary{background:#075985;border-c
 .player-row{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 10px;background:linear-gradient(110deg,#14243a,#101c2e);border:1px solid #263d5c;border-radius:13px;margin:7px 8px}
 .position-badge{display:flex;align-items:center;justify-content:center;min-height:34px;padding:5px 4px;border-radius:10px;background:#153b5c;color:#8bdcff;font-size:11px;font-weight:800;letter-spacing:.02em}
 .position-QB{background:#4b203c;color:#ffb4d1}.position-RB{background:#174b39;color:#a7f3c2}.position-WR{background:#123e63;color:#a8ddff}.position-TE{background:#57351d;color:#ffd0a0}.position-FLEX,.position-SF,.position-IDP{background:#38245e;color:#d8b8ff}
-.player-info{min-width:0}.player-name{font-size:14px;font-weight:750;line-height:1.25;overflow-wrap:anywhere}.player-team{font-size:11px;color:var(--muted);font-weight:500;margin-left:5px}.player-meta{font-size:11px;color:var(--muted);margin-top:4px}.projection-box{min-width:57px;text-align:center;padding:6px 7px;border-radius:10px;background:#1b2b42;border:1px solid #263b57}.projection-number{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}.projection-label{font-size:10px;color:var(--muted)}
+.player-info{min-width:0}.player-name{font-size:14px;font-weight:750;line-height:1.25;overflow-wrap:anywhere}.player-team{font-size:11px;color:var(--muted);font-weight:500;margin-left:5px}.player-meta{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35}.game-meta{font-size:11px;color:#b7c9df;margin-top:4px;line-height:1.35}.projection-box{min-width:57px;text-align:center;padding:6px 7px;border-radius:10px;background:#1b2b42;border:1px solid #263b57}.projection-number{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}.projection-label{font-size:10px;color:var(--muted)}
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}.section-head h2{border:0;padding:0}.section-total{font-size:12px;color:var(--muted);white-space:nowrap}
 .empty{padding:18px;color:var(--muted);font-size:14px}
 nav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
@@ -52,7 +52,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},weeklyPPG:{},weeklyProjection:{},marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:false,tab:"team",waiverPos:"ALL",waiverSearch:""};
+const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},weeklyPPG:{},weeklyProjection:{},schedule:{},marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:false,tab:"team",waiverPos:"ALL",waiverSearch:""};
 const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
 function status(s){$("#status").textContent=s}
 function diag(s){console.info("[Sleeper GM]",s)}
@@ -115,7 +115,7 @@ function render(){
  const wins=r.settings?.wins??0, losses=r.settings?.losses??0, ties=r.settings?.ties??0;
  const record=wins+"-"+losses+(ties?"-"+ties:"");
  const positionClass=id=>{const p=pos(id);return ["QB","RB","WR","TE"].includes(p)?"position-"+p:p==="IDP"?"position-IDP":"position-FLEX"};
-  const playerRows=(ids,emptyText)=>ids.length?ids.map(id=>{const projection=state.weeklyProjection[String(id)],p=state.players[id]||{};return '<div class="player-row"><div class="position-badge '+positionClass(id)+'">'+esc(pos(id))+(pos(id)==="QB"||pos(id)==="RB"||pos(id)==="WR"||pos(id)==="TE"?"":"")+'</div><div class="player-info"><div class="player-name">'+esc(playerName(id))+' <span class="player-team">('+esc(teamName(id))+' )</span></div><div class="player-meta">'+(p.injury_status?"Injury: "+esc(p.injury_status):"Weekly projection")+'</div></div><div class="projection-box"><div class="projection-number">'+(Number.isFinite(projection)?projection.toFixed(1):"—")+'</div><div class="projection-label">proj pts</div></div></div>'}).join(''):'<div class="empty">'+emptyText+'</div>';
+  const playerRows=(ids,emptyText)=>ids.length?ids.map(id=>{const projection=state.weeklyProjection[String(id)],p=state.players[id]||{},game=state.schedule[p.team]||null;const kickoff=game?.date?new Date(game.date).toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"}):"Kickoff TBD";const matchup=game?(game.home===p.team?"vs "+game.away:"@ "+game.home):"Matchup TBD";return '<div class="player-row"><div class="position-badge '+positionClass(id)+'">'+esc(pos(id))+'</div><div class="player-info"><div class="player-name">'+esc(playerName(id))+' <span class="player-team">('+esc(teamName(id))+')</span></div><div class="game-meta">'+esc(matchup)+' · '+esc(kickoff)+'</div>'+(p.injury_status?'<div class="player-meta">Injury: '+esc(p.injury_status)+'</div>':'')+'</div><div class="projection-box"><div class="projection-number">'+(Number.isFinite(projection)?projection.toFixed(1):"—")+'</div><div class="projection-label">proj pts</div></div></div>'}).join(''):'<div class="empty">'+emptyText+'</div>';
   const lineup=()=>{
    const slots=(state.league?.roster_positions||[]).filter(s=>!["BN","IR","TAXI","RESERVE"].includes(String(s).toUpperCase()));
    const canonical=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -154,6 +154,19 @@ async function load(){
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){state.players=await getJSON("https://api.sleeper.app/v1/players/nfl")}
   try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}
+  state.schedule={};
+  try{
+   const nflStateForSchedule=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
+   const scheduleSeason=Number(nflStateForSchedule.season)||new Date().getFullYear();
+   const scheduleWeek=Number(nflStateForSchedule.week)||Number(nflStateForSchedule.display_week)||1;
+   const board=await getJSON("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+scheduleWeek+"&seasontype=2&season="+scheduleSeason);
+   for(const event of board.events||[]){
+    const comp=event.competitions&&event.competitions[0],teams=comp?.competitors||[];
+    const home=teams.find(t=>t.homeAway==="home")?.team?.abbreviation,away=teams.find(t=>t.homeAway==="away")?.team?.abbreviation;
+    if(!home||!away)continue;
+    for(const team of [home,away])state.schedule[team]={home,away,date:event.date};
+   }
+  }catch(err){diag("Schedule unavailable: "+err.message)}
   const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
