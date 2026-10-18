@@ -132,6 +132,7 @@ async function load(){
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){state.players=await getJSON("https://api.sleeper.app/v1/players/nfl")}
   try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}
+  try{const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl");const season=Number(nflState.season)||new Date().getFullYear();const stats=await getJSON("https://api.sleeper.app/v1/stats/nfl/regular/"+season);state.weeklyPPG={};for(const [pid,s] of Object.entries(stats||{})){const games=Number(s.gp??s.gms_active??s.games_played)||0;const pts=Number(s.pts_ppr);if(games>0&&Number.isFinite(pts))state.weeklyPPG[String(pid)]=pts/games}}catch(err){state.weeklyPPG={}}
   status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
   render();
  }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
