@@ -103,7 +103,7 @@ function render(){
   for(const [id,p] of Object.entries(state.players)){
    if(!p||rostered.has(String(id))||p.active===false) continue;
    if(!p.team||String(p.team).toUpperCase()==="FA")continue;
-   if(p.status&& !["Active","Injured Reserve","Questionable","Doubtful","Out","PUP","NFI","Non-Football Injury","Suspended"].includes(String(p.status)))continue;
+   if(state.waiverMode!=="ir"&&p.status&& !["Active","Injured Reserve","Questionable","Doubtful","Out","PUP","NFI","Non-Football Injury","Suspended"].includes(String(p.status)))continue;
    const playerPos=String(p.position||"").toUpperCase();
    const isIDP=["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(playerPos);
    if(!positions.has(playerPos))continue;
