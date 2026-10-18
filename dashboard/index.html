@@ -136,18 +136,18 @@ async function load(){
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
   try{
-   const stats=await getJSON("https://api.sleeper.com/stats/nfl/"+season+"?season_type=regular");
+   const stats=await getJSON("https://api.sleeper.com/stats/nfl/"+season+"/"+week+"?season_type=regular");
    state.weeklyPPG={};
    const statRows=Array.isArray(stats)?stats:Object.entries(stats||{}).map(([player_id,v])=>({player_id,...(v||{})}));
    for(const s of statRows){
     const pid=String(s.player_id??s.playerId??s.id??"");
-    const games=Number(s.gp??s.gms_active??s.games_played??s.games??0);
     const pts=Number(s.pts_ppr??s.pts_half_ppr??s.pts_std);
-    if(pid&&games>0&&Number.isFinite(pts))state.weeklyPPG[pid]=pts/games;
+    const games=Number(s.gp??s.gms_active??s.games_played??s.games??0);
+    if(pid&&Number.isFinite(pts))state.weeklyPPG[pid]=games>0?pts/games:pts;
    }
-  }catch(err){console.warn("Sleeper season stats unavailable",err);state.weeklyPPG={}}
+  }catch(err){console.warn("Sleeper weekly stats unavailable",err);state.weeklyPPG={}}
   try{
-   const projections=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular");
+   const projections=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular&order_by=pts_ppr");
    state.weeklyProjection={};
    const projectionRows=Array.isArray(projections)?projections:Object.entries(projections||{}).map(([player_id,v])=>({player_id,...(v||{})}));
    for(const p of projectionRows){
