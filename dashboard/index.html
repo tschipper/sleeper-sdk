@@ -202,25 +202,28 @@ async function openPlayerPanel(id,panel){
  document.body.appendChild(back);back.addEventListener("click",e=>{if(e.target===back)closePlayerModal()});back.querySelector(".player-modal-close").addEventListener("click",closePlayerModal);
  const body=back.querySelector(".player-modal-body");
  if(panel==="projections"){const h=state.weeklyHistory[String(id)]||[],pr=state.weeklyProjection[String(id)],avg=state.weeklyPPG[String(id)];body.innerHTML='<div class="cards"><div class="card"><div class="kicker">This week projection</div><div class="value">'+(Number.isFinite(pr)?pr.toFixed(1):'—')+'</div></div><div class="card"><div class="kicker">Season avg PPG</div><div class="value">'+(Number.isFinite(avg)?avg.toFixed(1):'—')+'</div></div></div><h3 style="font-size:15px">Previous weekly stats</h3>'+(h.length?h.slice().reverse().map(w=>'<div class="history-row"><span>Week '+w.week+'</span><strong>'+w.points.toFixed(1)+' pts</strong></div>').join(''):'<div class="empty">No weekly stats available for this player.</div>');return}
- body.innerHTML='<h3 style="font-size:15px">Player news & updates</h3><div class="empty">Finding player-specific news…</div>';
- const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
- const full=norm(name),last=norm(p.last_name||name.split(" ").slice(-1)[0]);
- const articleList=data=>{const candidates=[data?.articles,data?.results,data?.news,data?.items,data?.feed?.items];return candidates.find(Array.isArray)||[]};
- const formatItems=items=>items.map(a=>{const headline=a.headline||a.title||a.story?.headline||"NFL player update";const href=a.links?.web?.href||a.links?.api?.news?.href||a.link||a.url||"https://www.espn.com/nfl/";const published=a.published||a.lastModified||a.date;const desc=a.description||a.story?.description||a.summary||"";return '<div class="history-row" style="display:block"><a href="'+esc(href)+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:none">'+esc(headline)+'</a>'+(published?'<div class="sub">'+esc(new Date(published).toLocaleString())+'</div>':'')+(desc?'<div style="margin-top:5px;font-size:13px">'+esc(desc)+'</div>':'')+'</div>'}).join("");
- try{
-  let items=[],source="ESPN player news";
-  try{
-   const search=await getJSON("https://site.web.api.espn.com/apis/search/v2?region=us&lang=en&limit=10&query="+encodeURIComponent(name));
-   const pool=[];const walk=(v)=>{if(!v||typeof v!=="object")return;if(Array.isArray(v)){v.forEach(walk);return}const nm=v.displayName||v.fullName||v.name||v.title;const typ=String(v.type||v.contentType||v.docType||"").toLowerCase();const idv=v.id||v.athleteId;if(idv&&nm&&norm(nm)===full&&(typ.includes("athlete")||v.position||v.team||v.sport))pool.push({id:String(idv),name:nm});Object.values(v).forEach(walk)};walk(search);
-   const match=pool.find(x=>norm(x.name)===full)||pool.find(x=>norm(x.name).includes(full)||full.includes(norm(x.name)));
-   if(match){const data=await getJSON("https://site.api.espn.com/apis/site/v2/sports/football/nfl/athletes/"+encodeURIComponent(match.id)+"/news?limit=15");items=articleList(data);if(!items.length&&Array.isArray(data?.headlines))items=data.headlines;}
-  }catch(e){console.info("ESPN player-specific news unavailable",e)}
-  if(!items.length){
-   source="ESPN NFL news";const data=await getJSON("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100");
-   const articles=articleList(data);items=articles.filter(a=>{const t=norm([a.headline,a.title,a.description,a.story?.headline,a.story?.description,(a.categories||[]).map(x=>x.description||x.name).join(" ")].join(" "));return (full.length>4&&t.includes(full))||(last.length>3&&new RegExp("(^| )"+last.replace(/[.*+?^$\{\}()|[\]\\]/g,"\\$&")+"( |$)").test(t))}).slice(0,12);
-  }
-  body.innerHTML=items.length?'<div class="sub">Source: '+source+'</div>'+formatItems(items):'<div class="empty">No recent ESPN updates matched '+esc(name)+'. ESPN may not have a player-specific article right now.</div><a href="https://www.espn.com/nfl/search/_/q/'+encodeURIComponent(name)+'" target="_blank" rel="noopener" style="color:var(--accent)">Search ESPN for '+esc(name)+' ↗</a>';
- }catch(e){body.innerHTML='<div class="empty">Could not load player news right now. ESPN’s public feed may be unavailable.</div><a href="https://www.espn.com/nfl/search/_/q/'+encodeURIComponent(name)+'" target="_blank" rel="noopener" style="color:var(--accent)">Search ESPN for '+esc(name)+' ↗</a>';console.warn("Player news load failed",e)}
+ body.innerHTML='<h3 style="font-size:15px">Player info & status</h3><div class="empty">Loading LeagueLogs player information…</div>';
+ const urls=[
+  "https://api.leaguelogs.com/v1/players/"+encodeURIComponent(String(id)),
+  "https://api.leaguelogs.com/api/v1/players/"+encodeURIComponent(String(id)),
+  "https://api.leaguelogs.com/v1/players?sleeper_id="+encodeURIComponent(String(id)),
+  "https://api.leaguelogs.com/api/v1/players?sleeper_id="+encodeURIComponent(String(id))
+ ];
+ let data=null,lastError=null;
+ for(const url of urls){try{const response=await fetch(url);if(!response.ok){lastError=new Error("HTTP "+response.status);continue}data=await response.json();if(data){break}}catch(e){lastError=e}}
+ const findPlayer=(obj)=>{if(!obj||typeof obj!=="object")return null;if(Array.isArray(obj)){for(const x of obj){const found=findPlayer(x);if(found)return found}return null}const sid=String(obj.sleeper_id??obj.sleeperId??obj.player_id??obj.playerId??obj.id??"");if(sid===String(id)||obj.status_blurb||obj.statusBlurb||obj.sf_dynasty||obj.dynasty_value)return obj;for(const k of ["player","data","players","results","items"]){const found=findPlayer(obj[k]);if(found)return found}return obj};
+ if(!data){body.innerHTML='<div class="empty">LeagueLogs could not be reached from this browser'+(lastError?' ('+esc(lastError.message)+')':'')+'.</div><a href="https://developer.leaguelogs.com" target="_blank" rel="noopener" style="color:var(--accent)">Open LeagueLogs API docs ↗</a>';return}
+ const item=findPlayer(data)||data;
+ const statusText=item.status_blurb||item.statusBlurb||item.news||item.note||item.summary||item.status_text||item.statusText||"";
+ const injury=item.injury_status||item.injuryStatus||item.injury||"";
+ const updated=item.updated_at||item.updatedAt||item.last_updated||item.lastUpdated||"";
+ const value=item.values?.sf_dynasty??item.sf_dynasty??item.dynasty_value;
+ const details=[];
+ if(statusText&&typeof statusText==="string")details.push('<div class="history-row" style="display:block"><strong>Latest update</strong><div style="margin-top:5px">'+esc(statusText)+'</div></div>');
+ if(injury&&typeof injury==="string"&&injury!==statusText)details.push('<div class="history-row"><span>Injury status</span><strong>'+esc(injury)+'</strong></div>');
+ if(value!==undefined&&value!==null)details.push('<div class="history-row"><span>Dynasty value</span><strong>'+esc(String(value))+'</strong></div>');
+ if(updated)details.push('<div class="sub">Updated '+esc(String(updated))+'</div>');
+ body.innerHTML=details.length?'<div class="sub">Source: LeagueLogs · <a href="https://developer.leaguelogs.com" target="_blank" rel="noopener" style="color:var(--accent)">API docs ↗</a></div>'+details.join(""):'<div class="empty">LeagueLogs responded, but no status blurb was found for '+esc(name)+'. Sleeper injury status: '+esc(p.injury_status||"Not listed")+'.</div><a href="https://www.google.com/search?q='+encodeURIComponent(name+" NFL news injury update")+'" target="_blank" rel="noopener" style="color:var(--accent)">Search latest news ↗</a>';
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-player]");if(!b)return;const panel=b.dataset.panel||(b.classList.contains("player-name-open")?"news":"");if(panel)openPlayerPanel(b.dataset.player,panel)});
 async function load(){
