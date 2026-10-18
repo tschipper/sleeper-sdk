@@ -248,12 +248,13 @@ async function load(){
    }
   }catch(err){diag("Schedule unavailable: "+err.message)}
   const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
-   state.nflWeek=Number(nflState.week)||Number(nflState.display_week)||1;if(!state.matchupWeek)state.matchupWeek=state.nflWeek;
+   // Prefer display_week because it represents the week currently shown in Sleeper's UI.
+   const week=Number(nflState.display_week)||Number(nflState.week)||1;
+   state.nflWeek=week;if(!state.matchupWeek)state.matchupWeek=week;
    try{state.matchups=await getJSON("https://api.sleeper.app/v1/league/"+id+"/matchups/"+state.matchupWeek)}catch(e){state.matchups=[]}
   const season=Number(nflState.season)||new Date().getFullYear();
-  const week=Number(nflState.week)||Number(nflState.display_week)||1;
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
-  diag("Season/week from Sleeper: "+season+" / "+week+"; league reception scoring="+recPoints+"; using "+scoreKey);
+  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; using "+scoreKey);
   state.weeklyPPG={};state.weeklyProjection={};
   const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
