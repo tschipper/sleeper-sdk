@@ -43,11 +43,11 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 <div class="status" id="status" role="status">Ready to load your league.</div>
 <nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button></nav>
 <div id="content"></div>
-<p class="note">Data is read directly from Sleeper’s public API. Recommendations will be added after the live roster view is verified. This app does not make roster or league changes.</p>
+<p class="note">League and roster data from Sleeper. Dynasty market values from Stats Guy Fantasy. Pickup-fit scores are estimates, not fantasy-point projections. This app does not make roster or league changes.</p>
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const state={league:null,rosters:[],users:[],players:{},selectedRoster:"",tab:"team",waiverPos:"ALL",waiverSearch:""};
+const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},marketAsOf:"",marketError:"",selectedRoster:"",tab:"team",waiverPos:"ALL",waiverSearch:""};
 const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
 function status(s){$("#status").textContent=s}
 async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error("Sleeper API returned "+r.status);return r.json()}
@@ -65,6 +65,11 @@ function render(){
   state.rosters.forEach(r=>(r.players||[]).forEach(id=>rostered.add(String(id))));
   const positions=new Set(["QB","RB","WR","TE"]);
   const query=state.waiverSearch.trim().toLowerCase();
+  const roster=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));
+  const counts={QB:0,RB:0,WR:0,TE:0};
+  (roster?.players||[]).forEach(id=>{const p=state.players[id];if(p&&counts[p.position]!==undefined)counts[p.position]++});
+  const targets={QB:3,RB:5,WR:5,TE:2};
+  const needScore=pos=>Math.max(10,Math.min(100,((targets[pos]-counts[pos])/targets[pos])*100));
   const free=[];
   for(const [id,p] of Object.entries(state.players)){
    if(!p||rostered.has(String(id))||!positions.has(p.position)||p.active===false) continue;
@@ -72,12 +77,17 @@ function render(){
    const name=p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id);
    if(state.waiverPos!=="ALL"&&p.position!==state.waiverPos) continue;
    if(query&&!name.toLowerCase().includes(query)&&!(p.team||"").toLowerCase().includes(query)) continue;
-   free.push({id,p,name,rank:Number(p.search_rank)||99999,depth:Number(p.depth_chart_order)||99});
+   const market=state.marketPlayers[String(id)]||null;
+   const value=Number(market?.value?.sf_dynasty)||0;
+   const marketScore=Math.max(0,Math.min(100,value/100));
+   const need=needScore(p.position);
+   const pickupScore=Math.round(need*.6+marketScore*.4);
+   free.push({id,p,name,market,value,need,marketScore,pickupScore,rank:Number(p.search_rank)||99999,depth:Number(p.depth_chart_order)||99});
   }
-  free.sort((a,b)=>a.rank-b.rank||a.depth-b.depth||a.name.localeCompare(b.name));
+  free.sort((a,b)=>b.pickupScore-a.pickupScore||b.value-a.value||a.rank-b.rank||a.name.localeCompare(b.name));
   const shown=free.slice(0,100);
-  const rows=shown.map((x,i)=>'<div class="team"><div class="teamhead"><span>'+(i+1)+'. '+esc(x.name)+'</span><span class="pill">'+esc(x.p.position||"—")+'</span></div><div class="sub">'+esc(x.p.team||"Team unknown")+' · '+(x.p.depth_chart_order?'Depth chart #'+x.p.depth_chart_order:'depth chart unknown')+(x.p.injury_status?' · Injury: '+esc(x.p.injury_status):'')+'</div></div>').join('');
-  content.innerHTML='<div class="section"><h2>Available Players ('+free.length+(free.length===100?'+':'')+')</h2><div style="padding:12px;display:grid;gap:9px"><label for="waiver-search">Search player or NFL team</label><input id="waiver-search" value="'+esc(state.waiverSearch)+'" placeholder="e.g. Jaylen Warren" style="width:100%;padding:12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--text)"><label for="waiver-pos">Position</label><select id="waiver-pos"><option value="ALL">All positions</option><option value="QB">QB</option><option value="RB">RB</option><option value="WR">WR</option><option value="TE">TE</option></select><div class="sub">Available unrostered players. Initial ordering uses Sleeper search rank and depth-chart information, not projected fantasy points.</div></div>'+(rows||'<div class="empty">No players match those filters.</div>')+'</div>';
+  const rows=shown.map((x,i)=>'<div class="team"><div class="teamhead"><span>'+(i+1)+'. '+esc(x.name)+'</span><span class="pill">'+esc(x.p.position||"—")+' · '+x.pickupScore+'% fit</span></div><div class="sub">'+esc(x.p.team||"Team unknown")+' · Dynasty value: '+(x.market?x.value.toLocaleString():'N/A')+(x.market&&x.market.rank?.sf_dynasty?' · Overall #'+x.market.rank.sf_dynasty:'')+(x.market?.valueChange?.sf_dynasty?.days30!=null?' · 30-day '+(x.market.valueChange.sf_dynasty.days30>0?'+':'')+x.market.valueChange.sf_dynasty.days30:'')+(x.p.injury_status?' · Injury: '+esc(x.p.injury_status):'')+'</div><div class="sub">Roster need '+Math.round(x.need)+'% · Market value '+Math.round(x.marketScore)+'%</div><div style="height:5px;background:var(--line);border-radius:9px;margin-top:8px;overflow:hidden"><div style="height:100%;width:'+x.pickupScore+'%;background:var(--green);border-radius:9px"></div></div>'+(x.market?.url?'<div class="sub"><a href="'+esc(x.market.url)+'" target="_blank" rel="noopener" style="color:var(--accent)">View Stats Guy Fantasy profile ↗</a></div>':'')+'</div>').join('');
+  content.innerHTML='<div class="section"><h2>Recommended Pickups ('+free.length+(free.length===100?'+':'')+')</h2><div style="padding:12px;display:grid;gap:9px"><label for="waiver-search">Search player or NFL team</label><input id="waiver-search" value="'+esc(state.waiverSearch)+'" placeholder="e.g. Jaylen Warren" style="width:100%;padding:12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--text)"><label for="waiver-pos">Position</label><select id="waiver-pos"><option value="ALL">All positions</option><option value="QB">QB</option><option value="RB">RB</option><option value="WR">WR</option><option value="TE">TE</option></select><div class="sub">Pickup fit is an estimate: 60% roster need and 40% Stats Guy Fantasy superflex dynasty market value. Need is estimated from roster depth targets (QB 3, RB 5, WR 5, TE 2), not live projected points. '+(state.marketAsOf?'Market values as of '+esc(state.marketAsOf)+'.':(state.marketError?'Market values unavailable: '+esc(state.marketError):'Loading market values…'))+'</div></div>'+(rows||'<div class="empty">No players match those filters.</div>')+'</div>';
   $("#waiver-pos").value=state.waiverPos;
   $("#waiver-search").addEventListener("input",e=>{state.waiverSearch=e.target.value;const cursor=e.target.selectionStart;render();const el=$("#waiver-search");el.focus();el.setSelectionRange(cursor,cursor)});
   $("#waiver-pos").addEventListener("change",e=>{state.waiverPos=e.target.value;render()});
@@ -114,8 +124,9 @@ async function load(){
   $("#team").innerHTML=rosters.map(r=>{const u=users.find(x=>x.user_id===r.owner_id)||{};return '<option value="'+r.roster_id+'">'+esc(u.display_name||u.username||("Roster "+r.roster_id))+'</option>'}).join("");
   if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
   $("#team").value=state.selectedRoster;
-  status("League loaded. Fetching player names…");
+  status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){state.players=await getJSON("https://api.sleeper.app/v1/players/nfl")}
+  try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}
   status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
   render();
  }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
