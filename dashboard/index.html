@@ -252,11 +252,11 @@ async function load(){
    try{state.matchups=await getJSON("https://api.sleeper.app/v1/league/"+id+"/matchups/"+state.matchupWeek)}catch(e){state.matchups=[]}
   const season=Number(nflState.season)||new Date().getFullYear();
   const week=Number(nflState.week)||Number(nflState.display_week)||1;
-  diag("Season/week from Sleeper: "+season+" / "+week);
+  diag("Season/week from Sleeper: "+season+" / "+week+"; league reception scoring="+recPoints+"; using "+scoreKey);
   state.weeklyPPG={};state.weeklyProjection={};
   const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
-   const totals={},counts={},lastWeek=Math.max(1,Math.min(week,18));
+   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr",totals={},counts={},lastWeek=Math.max(1,Math.min(week,18));
    const statWeeks=await Promise.all(Array.from({length:lastWeek},(_,i)=>getJSON("https://api.sleeper.com/stats/nfl/"+season+"/"+(i+1)+"?season_type=regular").catch(err=>{diag("Stats week "+(i+1)+" ERROR: "+err.message);return null})));
    state.weeklyHistory={};
    for(let wi=0;wi<statWeeks.length;wi++){
@@ -266,7 +266,7 @@ async function load(){
     for(const [key,s] of entries){
      const pid=String(s?.player_id??s?.playerId??s?.id??key);
      const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
-     const raw=row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+     const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
      if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
      const pts=Number(raw);if(!Number.isFinite(pts))continue;
      (state.weeklyHistory[pid]||(state.weeklyHistory[pid]=[])).push({week:wi+1,points:pts});
@@ -282,7 +282,7 @@ async function load(){
    const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?p.stats:p;
-    const raw=row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+    const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
     if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
     const points=Number(raw);if(Number.isFinite(points))state.weeklyProjection[pid]=points;
    }
