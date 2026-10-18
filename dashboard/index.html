@@ -284,10 +284,32 @@ async function load(){
    const url="https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular";
    const projections=await getJSON(url);summarize("Projection response",projections);
    const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
+   const scoring=league.scoring_settings||{};
+   const statAliases={
+    pass_yd:["pass_yd","pass_yds"],pass_td:["pass_td"],pass_int:["pass_int"],pass_2pt:["pass_2pt"],
+    rush_yd:["rush_yd","rush_yds"],rush_td:["rush_td"],rush_2pt:["rush_2pt"],
+    rec:["rec"],rec_yd:["rec_yd","rec_yds"],rec_td:["rec_td"],rec_2pt:["rec_2pt"],
+    fum_lost:["fum_lost","fum_lost_yd"],fum_rec_td:["fum_rec_td"],sack:["sack"],pass_sack:["pass_sack"],
+    pass_cmp:["pass_cmp"],pass_att:["pass_att"],pass_inc:["pass_inc"],pass_fd:["pass_fd"],rush_fd:["rush_fd"],rec_fd:["rec_fd"],
+    st_td:["st_td"],st_fum_rec:["st_fum_rec"],st_fum_ret:["st_fum_ret"],st_ff:["st_ff"],st_fum_lost:["st_fum_lost"],
+    int:["int"],def_int:["def_int"],def_td:["def_td"],def_sack:["def_sack"],def_ff:["def_ff"],def_fum_rec:["def_fum_rec"],def_safe:["def_safe"],def_block:["def_block"],def_kr_td:["def_kr_td"],def_pr_td:["def_pr_td"]
+   };
+   const customProjectionPoints=row=>{
+    let total=0,found=false;
+    for(const [setting,aliases] of Object.entries(statAliases)){
+     const multiplier=Number(scoring[setting]||0);if(!multiplier)continue;
+     const statKey=aliases.find(k=>row[k]!==undefined&&row[k]!==null);if(!statKey)continue;
+     const n=Number(row[statKey]);if(!Number.isFinite(n))continue;
+     total+=n*multiplier;found=true;
+    }
+    return found?total:null;
+   };
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?p.stats:p;
-    const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
-    if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
+    if(pid.startsWith("TEAM_"))continue;
+    const custom=customProjectionPoints(row);
+    const raw=custom!==null?custom:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std);
+    if(raw===undefined||raw===null)continue;
     const points=Number(raw);if(Number.isFinite(points))state.weeklyProjection[pid]=points;
    }
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
