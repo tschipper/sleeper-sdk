@@ -147,7 +147,9 @@ async function load(){
    for(let wi=0;wi<statWeeks.length;wi++){
     const stats=statWeeks[wi];if(!stats||typeof stats!=="object")continue;
     if(wi===0)summarize("Stats response",stats);
-    for(const [pid,s] of Object.entries(stats)){
+    const entries=Array.isArray(stats)?stats.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(stats);
+    for(const [key,s] of entries){
+     const pid=String(s?.player_id??s?.playerId??s?.id??key);
      const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
      const raw=row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
      if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
