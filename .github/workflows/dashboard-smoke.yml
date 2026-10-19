@@ -1,0 +1,42 @@
+name: Dashboard UI smoke QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+      - ".github/workflows/dashboard-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start dashboard
+        run: python3 -m http.server 4173 --directory dashboard > /tmp/dashboard.log 2>&1 &
+      - name: Wait for dashboard
+        run: |
+          for i in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:4173/ > /dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/dashboard.log
+          exit 1
+      - name: Run mobile UI smoke tests
+        run: node dashboard/qa-smoke.mjs
