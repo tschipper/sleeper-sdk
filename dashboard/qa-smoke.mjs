@@ -49,6 +49,7 @@ try {
     await openTab("matchup", "Starters");
     assert.equal((await page.locator(".matchup-team-title").first().innerText()).trim(), otherTeamLabel, "selected team identity must stay consistent after changing teams");
     await teamSelect.selectOption(originalTeamId);
+    await page.locator('nav [data-tab="team"]').click();
     await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), originalTeamId, { timeout: 10000 });
   }
   await noHorizontalOverflow("My Team");
