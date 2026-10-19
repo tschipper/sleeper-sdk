@@ -601,8 +601,10 @@ async function load(){
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?p.stats:p;
     if(pid.startsWith("TEAM_"))continue;
-    // Use Sleeper's own projected fantasy-point field for this league's scoring format.
-    const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_points;
+    // Prefer a complete league-specific calculation when Sleeper supplies every
+    // configured scoring stat; otherwise use Sleeper's published standard-format total.
+    const customPoints=leaguePointsFromStats(row);
+    const raw=customPoints!==null?customPoints:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_points);
     if(raw===undefined||raw===null){missingProjectionPoints++;continue}
     const points=Number(raw);if(!Number.isFinite(points))continue;
     state.weeklyProjection[pid]=points;projectionRows++;
@@ -618,7 +620,8 @@ async function load(){
      const byPlayer={};
      for(const [key,item] of historicalEntries){
       const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;
-      const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_points;
+      const customPoints=leaguePointsFromStats(row);
+      const raw=customPoints!==null?customPoints:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_points);
       const value=Number(raw);
       if(!pid.startsWith("TEAM_")&&raw!==undefined&&raw!==null&&Number.isFinite(value))byPlayer[pid]=value;
      }
