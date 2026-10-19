@@ -97,8 +97,14 @@ try {
   if (await expand.count()) { await expand.click(); await noHorizontalOverflow("matchup expanded bench"); }
 
   await openTab("waivers", "Waiver Wire");
-  const mode = page.locator("[data-waiver-mode]").last();
-  if (await mode.count()) { await mode.click(); await noHorizontalOverflow("waiver mode change"); }
+  const waiverModes = page.locator("[data-waiver-mode]");
+  for (let i = 0, count = await waiverModes.count(); i < count; i++) {
+    const mode = waiverModes.nth(i);
+    const label = (await mode.innerText()).trim() || ("mode " + i);
+    await mode.click();
+    await noHorizontalOverflow("waiver mode " + label);
+    await assertByeLabels("waiver mode " + label);
+  }
   const cutSuggestion = page.locator(".cut-suggest").first();
   if (await cutSuggestion.count()) { await cutSuggestion.click(); await page.locator(".waiver-cut").waitFor({ state: "visible", timeout: 10000 }); }
   const search = page.locator("#waiver-search");
@@ -116,6 +122,8 @@ try {
   }
   const removeAsset = page.locator("[data-mt-remove]").first();
   if (await removeAsset.count()) { await removeAsset.click(); await noHorizontalOverflow("trade asset removal"); }
+  const clearTrade = page.locator("#mt-clear");
+  if (await clearTrade.count()) { await clearTrade.click(); await noHorizontalOverflow("clear trade"); }
   await noHorizontalOverflow("trade analyzer");
 
   await openTab("draft", "Future Draft");
@@ -130,7 +138,7 @@ try {
 
   await openTab("team", "Starters");
   const playerButton = page.locator("#content .player-name-open").first();
-  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" }); await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
+  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" }); await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" }); await page.locator(".player-modal-close").click(); await page.locator(".player-modal").waitFor({ state: "detached" }); await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
   const ranking = page.locator("#content [data-ranking]").first();
   if (await ranking.count()) {
     await ranking.click();
