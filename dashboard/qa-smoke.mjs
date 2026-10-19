@@ -119,6 +119,10 @@ try {
   await noHorizontalOverflow("trade analyzer");
 
   await openTab("draft", "Future Draft");
+  const futureHeading = await page.locator("#content h2").filter({ hasText: "Future Rookie Draft" }).innerText();
+  const expectedFutureYear = await page.evaluate(() => Math.max(Number(state.league?.season) || 0, new Date().getFullYear()) + 1);
+  assert.equal(futureHeading.trim(), expectedFutureYear + " Future Rookie Draft", "future draft should focus on the next available year only");
+  assert.equal(await page.locator("#content h2").filter({ hasText: "Future Rookie Draft" }).count(), 1, "only one future rookie draft year should be displayed");
   const recap = page.locator('[data-draft-section="recaps"]');
   if (await recap.count()) { await recap.click(); await noHorizontalOverflow("draft recaps"); }
   const future = page.locator('[data-draft-section="future"]');
