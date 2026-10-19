@@ -32,6 +32,25 @@ try {
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
   assert.ok(await page.locator(".team-identity-card").count() === 1, "roster page should show consistent team identity");
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
+  const accessibilityAudit = await page.evaluate(() => ({
+    duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
+    unnamedButtons: [...document.querySelectorAll("button")].filter(el => el.getClientRects().length && !(el.innerText || "").trim() && !el.getAttribute("aria-label") && !el.getAttribute("title") && !el.getAttribute("aria-labelledby")).map(el => el.outerHTML.slice(0, 140))
+  }));
+  assert.deepEqual(accessibilityAudit.duplicateIds, [], "duplicate HTML IDs found");
+  assert.deepEqual(accessibilityAudit.unnamedButtons, [], "visible buttons need accessible names");
+  const teamSelect = page.locator("#team");
+  const originalTeamId = await teamSelect.inputValue();
+  const otherTeamOption = teamSelect.locator("option").nth(1);
+  if (await otherTeamOption.count()) {
+    const otherTeamId = await otherTeamOption.getAttribute("value");
+    const otherTeamLabel = (await otherTeamOption.innerText()).trim();
+    await teamSelect.selectOption(otherTeamId);
+    await page.waitForFunction(label => document.querySelector(".team-identity-copy strong")?.textContent.trim() === label, otherTeamLabel, { timeout: 10000 });
+    await openTab("matchup", "Starters");
+    assert.equal((await page.locator(".matchup-team-title").first().innerText()).trim(), otherTeamLabel, "selected team identity must stay consistent after changing teams");
+    await teamSelect.selectOption(originalTeamId);
+    await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), originalTeamId, { timeout: 10000 });
+  }
   await noHorizontalOverflow("My Team");
 
   await openTab("matchup", "Starters");
