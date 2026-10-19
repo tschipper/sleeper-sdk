@@ -17,10 +17,21 @@ async function noHorizontalOverflow(label) {
   assert.ok(result.document <= result.viewport + 1 && result.body <= result.viewport + 1,
     label + " has horizontal overflow: " + JSON.stringify(result));
 }
+async function auditPage(label) {
+  const audit = await page.evaluate(() => ({
+    duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
+    unnamedButtons: [...document.querySelectorAll("button")].filter(el => el.getClientRects().length && !(el.innerText || "").trim() && !el.getAttribute("aria-label") && !el.getAttribute("title") && !el.getAttribute("aria-labelledby")).map(el => el.outerHTML.slice(0, 140)),
+    unlabeledFields: [...document.querySelectorAll("input,select,textarea")].filter(el => el.getClientRects().length && !el.disabled && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby") && !el.getAttribute("title") && !el.placeholder && !(el.labels && [...el.labels].length) && !el.closest("label")).map(el => el.outerHTML.slice(0, 140))
+  }));
+  assert.deepEqual(audit.duplicateIds, [], label + ": duplicate HTML IDs found");
+  assert.deepEqual(audit.unnamedButtons, [], label + ": visible buttons need accessible names");
+  assert.deepEqual(audit.unlabeledFields, [], label + ": visible form controls need accessible labels");
+}
 async function openTab(tab, expectedText) {
   await page.locator('nav [data-tab="' + tab + '"]').click();
   await page.locator("#content").getByText(expectedText, { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
   await noHorizontalOverflow(tab);
+  await auditPage(tab);
 }
 
 try {
@@ -39,6 +50,7 @@ try {
   }));
   assert.deepEqual(accessibilityAudit.duplicateIds, [], "duplicate HTML IDs found");
   assert.deepEqual(accessibilityAudit.unnamedButtons, [], "visible buttons need accessible names");
+  await auditPage("My Team");
   const teamSelect = page.locator("#team");
   const originalTeamId = await teamSelect.inputValue();
   const otherTeamOption = teamSelect.locator("option").nth(1);
@@ -113,6 +125,10 @@ try {
   }
   await page.locator("#refresh").click();
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
+  await page.setViewportSize({ width: 320, height: 740 });
+  for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
   await page.setViewportSize({ width: 1280, height: 900 });
   for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
