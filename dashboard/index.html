@@ -552,15 +552,18 @@ async function load(){
   const leagueScoring=league.scoring_settings||{};
   const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
   const leaguePointsFromStats=row=>{
-   let total=0,matched=0;
+   // Only calculate league-specific points when every configured scoring stat is present.
+   // Sleeper's stats feed may omit zero-valued or unsupported fields; a partial sum can
+   // silently produce a much lower score than the player's actual fantasy points.
+   let total=0,matched=0,complete=true;
    for(const [key,multiplierValue] of Object.entries(leagueScoring)){
     const multiplier=Number(multiplierValue);
     if(!Number.isFinite(multiplier)||multiplier===0||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
-    if(!Object.prototype.hasOwnProperty.call(row,key))continue;
-    const value=Number(row[key]);if(!Number.isFinite(value))continue;
+    if(!Object.prototype.hasOwnProperty.call(row,key)){complete=false;continue}
+    const value=Number(row[key]);if(!Number.isFinite(value)){complete=false;continue}
     total+=value*multiplier;matched++;
    }
-   return matched?total:null;
+   return complete&&matched?total:null;
   };
   diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; using "+scoreKey+" fallback plus league scoring settings");
   state.weeklyPPG={};state.weeklyProjection={};
