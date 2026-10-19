@@ -58,9 +58,9 @@ try {
   if (await search.count()) { await search.fill("xyz-no-match-test"); await noHorizontalOverflow("waiver search"); await search.fill(""); }
 
   await openTab("trades", "Trade");
-  for (const selector of ["#mt-give-add", "#mt-add-get", "#trade-view"]) {
+  for (const selector of ["#mt-add-give", "#mt-add-get", "#trade-view"]) {
     const control = page.locator(selector);
-    if (await control.count()) await control.evaluate(el => { if (el.tagName === "SELECT") el.selectedIndex = Math.min(1, el.options.length - 1); });
+    if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
   }
   await noHorizontalOverflow("trade analyzer");
 
@@ -70,7 +70,7 @@ try {
   const future = page.locator('[data-draft-section="future"]');
   if (await future.count()) { await future.click(); await noHorizontalOverflow("future draft"); }
 
-  await openTab("team", "My Team");
+  await openTab("team", "Starters");
   const ranking = page.locator("#content [data-ranking]").first();
   if (await ranking.count()) {
     await ranking.click();
