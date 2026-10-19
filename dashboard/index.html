@@ -112,6 +112,13 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 .matchup-score-header .matchup-win{font-size:9px!important;line-height:1.2!important;white-space:nowrap!important}
 .matchup-score-header .matchup-winbar{margin-top:7px!important}
 @media(max-width:420px){.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:25px minmax(0,1fr) auto!important;gap:4px!important}.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:auto minmax(0,1fr) 25px!important;gap:4px!important}.matchup-score-header .matchup-avatar{width:25px!important;height:25px!important;flex-basis:25px!important}.matchup-score-header .matchup-score strong{font-size:12px!important}.matchup-score-header .matchup-score span{font-size:9px!important}.matchup-score-header .matchup-win{font-size:8px!important}}
+
+/* Matchup header score stack — intentionally overrides legacy header rules */
+.matchup-score-header .matchup-team-header .matchup-score{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;grid-auto-flow:row!important;align-content:center!important;justify-items:center!important;align-items:center!important;gap:2px!important;min-width:0!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important}
+.matchup-score-header .matchup-team-header .matchup-score>strong,.matchup-score-header .matchup-team-header .matchup-score>span{display:block!important;grid-column:1!important;width:100%!important;min-width:0!important;text-align:center!important;margin:0!important;padding:0!important}
+.matchup-score-header .matchup-team-header .matchup-score>strong{grid-row:1!important;font-size:13px!important;line-height:1.1!important;font-weight:750!important;font-variant-numeric:tabular-nums!important}
+.matchup-score-header .matchup-team-header .matchup-score>span{grid-row:2!important;font-size:10px!important;line-height:1.1!important;color:#9bb2d2!important;font-variant-numeric:tabular-nums!important}
+@media(max-width:420px){.matchup-score-header .matchup-team-header .matchup-score>strong{font-size:12px!important}.matchup-score-header .matchup-team-header .matchup-score>span{font-size:9px!important}}
 </style>
 </head>
 <body>
