@@ -156,12 +156,15 @@ try {
     await page.locator(".player-modal-backdrop").click({ position: { x: 3, y: 3 } });
     await page.locator(".player-modal").waitFor({ state: "detached" });
   }
-  const ranking = page.locator("#content [data-ranking]").first();
-  if (await ranking.count()) {
-    await ranking.click();
-    await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.keyboard.press("Escape");
-    await page.locator(".player-modal").waitFor({ state: "detached" });
+  for (const kind of ["standings", "maxpf", "dynasty"]) {
+    const ranking = page.locator("#content [data-ranking=\"" + kind + "\"]").first();
+    if (await ranking.count()) {
+      await ranking.click();
+      await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
+      assert.ok((await page.locator(".player-modal").innerText()).trim().length > 10, kind + " detail modal should contain useful content");
+      await page.locator(".player-modal-close").click();
+      await page.locator(".player-modal").waitFor({ state: "detached" });
+    }
   }
   await page.locator("#refresh").click();
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
