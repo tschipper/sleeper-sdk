@@ -78,13 +78,15 @@ try {
   if (await ranking.count()) {
     await ranking.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.locator(".player-modal-close").click();
+    await page.keyboard.press("Escape");
     await page.locator(".player-modal").waitFor({ state: "detached" });
   }
   await page.locator("#refresh").click();
   await page.waitForFunction(() => /loaded/i.test(document.querySelector("#status")?.textContent || "") && !/loading league/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
-  console.log("PASS: app load, five tabs, matchup score stacking/week navigation/bench expansion, waiver filters/search, trade view, draft tabs, ranking modal, refresh, mobile overflow.");
+  console.log("PASS: app load, five tabs at mobile and desktop widths, matchup score stacking/week navigation/bench expansion, waiver filters/search, trade view, draft tabs, ranking modal/Escape, refresh, and overflow checks.");
 } finally {
   await browser.close();
 }
