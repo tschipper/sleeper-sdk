@@ -60,7 +60,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},usageTrends:{},weeklyPPG:{},weeklyProjection:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,nflWeek:1,marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3};
+const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},usageTrends:{},weeklyPPG:{},weeklyProjection:{},weeklyProjectionHistory:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,nflWeek:1,marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3};
 const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
 const ORIGINAL_PROJECTION_KEY="sleeper_gm_original_projections_v1";
 function readOriginalProjections(){try{return JSON.parse(localStorage.getItem(ORIGINAL_PROJECTION_KEY)||"{}")}catch(e){return {}}}
@@ -387,8 +387,8 @@ async function openPlayerPanel(id,panel){
  document.body.appendChild(back);back.addEventListener("click",e=>{if(e.target===back)closePlayerModal()});back.querySelector(".player-modal-close").addEventListener("click",closePlayerModal);
  const body=back.querySelector(".player-modal-body");
  if(panel==="projections"){
-  const h=state.weeklyHistory[String(id)]||[],pr=state.weeklyProjection[String(id)],avg=state.weeklyPPG[String(id)],selectedWeek=state.matchupWeek||state.nflWeek||1,selectedProjection=Number(selectedWeek)===Number(state.nflWeek||1)?pr:getOriginalProjection(id,selectedWeek),actual=(h.find(w=>Number(w.week)===Number(selectedWeek))||{}).points;
-  body.innerHTML='<div class="cards"><div class="card"><div class="kicker">Week '+selectedWeek+' Sleeper projection</div><div class="value">'+(Number.isFinite(selectedProjection)?selectedProjection.toFixed(2):'—')+'</div></div><div class="card"><div class="kicker">Week '+selectedWeek+' actual</div><div class="value">'+(Number.isFinite(actual)?actual.toFixed(2):'—')+'</div></div><div class="card"><div class="kicker">Season avg PPG</div><div class="value">'+(Number.isFinite(avg)?avg.toFixed(2):'—')+'</div></div></div><p class="muted">Projection values come from Sleeper. Past-week projections are only available if this browser saved them before kickoff; otherwise they show —.</p><h3 style="font-size:15px">Weekly projection vs. actual</h3>'+(h.length?h.slice().reverse().map(w=>{const op=getOriginalProjection(id,w.week);return '<div class="history-row"><span>Week '+w.week+' · Sleeper projection: '+(Number.isFinite(op)?op.toFixed(1):'—')+'</span><strong>'+w.points.toFixed(1)+' actual</strong></div>'}).join(''):'<div class="empty">No weekly stats available for this player.</div>');
+  const h=state.weeklyHistory[String(id)]||[],pr=state.weeklyProjection[String(id)],avg=state.weeklyPPG[String(id)],selectedWeek=state.matchupWeek||state.nflWeek||1,selectedWeekProjection=state.weeklyProjectionHistory?.[selectedWeek]?.[String(id)],selectedProjection=Number.isFinite(selectedWeekProjection)?selectedWeekProjection:(Number(selectedWeek)===Number(state.nflWeek||1)?pr:getOriginalProjection(id,selectedWeek)),actual=(h.find(w=>Number(w.week)===Number(selectedWeek))||{}).points;
+  body.innerHTML='<div class="cards"><div class="card"><div class="kicker">Week '+selectedWeek+' Sleeper projection</div><div class="value">'+(Number.isFinite(selectedProjection)?selectedProjection.toFixed(2):'—')+'</div></div><div class="card"><div class="kicker">Week '+selectedWeek+' actual</div><div class="value">'+(Number.isFinite(actual)?actual.toFixed(2):'—')+'</div></div><div class="card"><div class="kicker">Season avg PPG</div><div class="value">'+(Number.isFinite(avg)?avg.toFixed(2):'—')+'</div></div></div><p class="muted">Projection values come from Sleeper. Past-week projections are only available if this browser saved them before kickoff; otherwise they show —.</p><h3 style="font-size:15px">Weekly projection vs. actual</h3>'+(h.length?h.slice().reverse().map(w=>{const op=getOriginalProjection(id,w.week);const sleeperProjection=state.weeklyProjectionHistory?.[w.week]?.[String(id)];const shownProjection=Number.isFinite(sleeperProjection)?sleeperProjection:op;return '<div class="history-row"><span>Week '+w.week+' · Sleeper projection: '+(Number.isFinite(shownProjection)?shownProjection.toFixed(1):'—')+'</span><strong>'+w.points.toFixed(1)+' actual</strong></div>'}).join(''):'<div class="empty">No weekly stats available for this player.</div>');
   return
  }
  body.innerHTML='<h3 style="font-size:15px">Fantasy player news</h3><div class="empty">Looking up fantasy news for '+esc(name)+'…</div>';
@@ -499,6 +499,25 @@ async function load(){
     state.weeklyProjection[pid]=points;projectionRows++;
    }
    diag("Sleeper projections parsed="+projectionRows+", missing points="+missingProjectionPoints);
+   // Ask Sleeper for each week separately so the player modal can show weekly projection values when available.
+   state.weeklyProjectionHistory={};
+   state.weeklyProjectionHistory[week]={...state.weeklyProjection};
+   const priorProjectionWeeks=await Promise.all(Array.from({length:Math.max(0,week-1)},(_,i)=>i+1).map(async historicalWeek=>{
+    try{
+     const historical=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+historicalWeek+"?season_type=regular");
+     const historicalEntries=Array.isArray(historical)?historical.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(historical||{});
+     const byPlayer={};
+     for(const [key,item] of historicalEntries){
+      const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;
+      const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+      const value=Number(raw);
+      if(!pid.startsWith("TEAM_")&&raw!==undefined&&raw!==null&&Number.isFinite(value))byPlayer[pid]=value;
+     }
+     return [historicalWeek,byPlayer];
+    }catch(err){diag("Historical projections unavailable for week "+historicalWeek+": "+err.message);return [historicalWeek,{}]}
+   }));
+   for(const [historicalWeek,byPlayer] of priorProjectionWeeks)state.weeklyProjectionHistory[historicalWeek]=byPlayer;
+   diag("Historical projection weeks loaded="+Object.keys(state.weeklyProjectionHistory).filter(w=>Object.keys(state.weeklyProjectionHistory[w]||{}).length).length);
    captureOriginalProjections(id,season,week);
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
   }catch(err){diag("Projection ERROR: "+err.message)}
