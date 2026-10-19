@@ -32,6 +32,9 @@ try {
   await noHorizontalOverflow("My Team");
 
   await openTab("matchup", "Starters");
+  const selectedTeamLabel = await page.locator("#team option:checked").innerText();
+  const matchupTeamLabel = await page.locator(".matchup-team-title").first().innerText();
+  assert.equal(matchupTeamLabel, selectedTeamLabel, "team name should match between roster selector and matchup header");
   const score = page.locator(".matchup-team-header .matchup-score").first();
   if (await score.count()) {
     const actual = await score.locator("strong").boundingBox();
