@@ -83,7 +83,7 @@ try {
     await page.locator(".player-modal").waitFor({ state: "detached" });
   }
   await page.locator("#refresh").click();
-  await page.waitForFunction(() => /loaded/i.test(document.querySelector("#status")?.textContent || "") && !/loading league/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
+  await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
   await page.setViewportSize({ width: 1280, height: 900 });
   for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
