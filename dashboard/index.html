@@ -96,24 +96,20 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 .matchup-score-header .matchup-team-header:last-child .matchup-team-title,.matchup-score-header .matchup-team-header:last-child .matchup-team-record,.matchup-score-header .matchup-team-header:last-child .matchup-header-remaining{text-align:right!important}
 @media(max-width:420px){.matchup-score-header{grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr)!important;gap:8px!important;padding:14px 10px 13px!important}.matchup-score-header .matchup-avatar{width:38px;height:38px;flex-basis:38px}.matchup-score-header .matchup-team-topline{min-height:40px}.matchup-score-header .matchup-win{font-size:11px}.matchup-score-header .matchup-winbar{margin:5px 0 8px;height:5px}.matchup-score-header .matchup-header-score>div:first-child strong{font-size:18px!important}.matchup-score-header .matchup-header-score>div+div strong{font-size:14px!important}.matchup-score-header .matchup-team-title{font-size:13px!important}.matchup-score-header .matchup-team-record,.matchup-score-header .matchup-header-remaining{font-size:9px!important}.matchup-score-header .matchup-vs{font-size:10px!important;min-width:30px!important;padding:7px 2px!important}}
 
-/* Compact header score block; place points above the win bar */
-.matchup-score-header .matchup-team-topline{display:grid!important;grid-template-columns:40px minmax(0,1fr) auto!important;align-items:center!important;gap:7px!important;min-height:0!important}
-.matchup-score-header .matchup-avatar{width:38px!important;height:38px!important;flex-basis:38px!important}
-.matchup-score-header .matchup-score{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:1px!important;min-width:0!important;text-align:center!important;padding:0!important;background:transparent!important;border:0!important}
-.matchup-score-header .matchup-score strong{display:block!important;font-size:16px!important;line-height:1.1!important;font-weight:750!important;letter-spacing:0!important}
-.matchup-score-header .matchup-score span{display:block!important;font-size:12px!important;line-height:1.1!important;color:#9bb2d2!important}
-.matchup-score-header .matchup-win{font-size:11px!important;font-weight:800!important;white-space:nowrap!important;align-self:center!important}
-.matchup-score-header .matchup-winbar{margin:7px 0 10px!important;height:5px!important}
-.matchup-score-header .matchup-header-score{display:none!important}
-.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:auto minmax(0,1fr) 40px!important}
+/* Final header alignment: win percentage adjacent to avatar, score centered */
+.matchup-score-header .matchup-team-topline{display:grid!important;align-items:center!important;gap:6px!important;min-height:0!important}
+.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:38px auto minmax(0,1fr)!important}
 .matchup-score-header .matchup-team-header:first-child .matchup-avatar{grid-column:1;grid-row:1}
-.matchup-score-header .matchup-team-header:first-child .matchup-score{grid-column:2;grid-row:1;align-items:center!important}
-.matchup-score-header .matchup-team-header:first-child .matchup-win{grid-column:3;grid-row:1;text-align:right}
-.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:40px minmax(0,1fr) auto!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-score{grid-column:1;grid-row:1;align-items:center!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-win{grid-column:2;grid-row:1;text-align:left}
+.matchup-score-header .matchup-team-header:first-child .matchup-win{grid-column:2;grid-row:1;justify-self:start;text-align:left!important}
+.matchup-score-header .matchup-team-header:first-child .matchup-score{grid-column:3;grid-row:1;justify-self:end;align-items:flex-end!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:minmax(0,1fr) auto 38px!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-score{grid-column:1;grid-row:1;justify-self:start;align-items:flex-start!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-win{grid-column:2;grid-row:1;justify-self:end;text-align:right!important}
 .matchup-score-header .matchup-team-header:last-child .matchup-avatar{grid-column:3;grid-row:1}
-@media(max-width:420px){.matchup-score-header .matchup-team-topline{grid-template-columns:30px minmax(0,1fr) auto!important;gap:5px!important}.matchup-score-header .matchup-avatar{width:29px!important;height:29px!important;flex-basis:29px!important}.matchup-score-header .matchup-score strong{font-size:14px!important}.matchup-score-header .matchup-score span{font-size:10px!important}.matchup-score-header .matchup-win{font-size:9px!important}.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:auto minmax(0,1fr) 34px!important}.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:34px minmax(0,1fr) auto!important}}
+.matchup-score-header .matchup-score strong{font-size:14px!important;line-height:1.1!important;font-weight:750!important}
+.matchup-score-header .matchup-score span{font-size:10px!important;line-height:1.1!important}
+.matchup-score-header .matchup-win{font-size:10px!important;line-height:1.1!important}
+@media(max-width:420px){.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:29px auto minmax(0,1fr)!important;gap:4px!important}.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:minmax(0,1fr) auto 29px!important;gap:4px!important}.matchup-score-header .matchup-avatar{width:29px!important;height:29px!important;flex-basis:29px!important}.matchup-score-header .matchup-score strong{font-size:13px!important}.matchup-score-header .matchup-score span{font-size:9px!important}.matchup-score-header .matchup-win{font-size:9px!important}}
 </style>
 </head>
 <body>
