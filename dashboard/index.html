@@ -129,7 +129,7 @@ function render(){
    const projection=Number(state.weeklyProjection[String(id)]),ppg=Number(state.weeklyPPG[String(id)]);
    const productionScore=Math.max(0,Math.min(100,(Number.isFinite(projection)?projection:Number.isFinite(ppg)?ppg:0)*3));
    const draftYear=Number(p.draft_year)||0,draftRound=Number(p.draft_round)||0,draftPick=Number(p.draft_pick)||0,draftedBy=p.draft_team||p.drafted_by||"",draftTotal=draftYear?Math.max(0,...Object.values(state.players).filter(q=>Number(q?.draft_year)===draftYear).map(q=>Number(q?.draft_pick)||0)):0,collegePPG=Number(p.college_ppg??p.college_points_per_game??p.college_stats?.ppg);const depthOrder=Number(p.depth_chart_order)||99;const roleScore=Math.max(0,Math.min(100,(depthOrder<99?Math.max(0,6-depthOrder)*18:0)+(p.team?20:0)));
-   const prospectAge=Number(market?.age??p.age);const ageScore=Number.isFinite(prospectAge)?Math.max(0,100-prospectAge*5):50;const developmentScore=Math.round(marketScore*.35+roleScore*.25+productionScore*.15+ageScore*.25);
+   const prospectAge=Number(market?.age??p.age);const ageScore=Number.isFinite(prospectAge)?Math.max(0,Math.min(100,100-Math.max(0,prospectAge-20)*8)):65;const developmentScore=Math.round(marketScore*.35+roleScore*.25+productionScore*.15+ageScore*.25);
    const rankScore=Number(market?.rank?.sf_dynasty)>0?(market.rank.sf_dynasty<=50?100:market.rank.sf_dynasty<=100?80:market.rank.sf_dynasty<=200?60:market.rank.sf_dynasty<=400?40:20):50;
    const draftCapitalScore=draftRound===1?(draftPick>0&&draftPick<=10?100:90):draftRound===2?78:draftRound===3?64:draftRound===4?50:draftRound>=5?35:50;
    const opportunityScore=depthOrder<99?Math.max(0,Math.min(100,110-depthOrder*15)):50;
@@ -148,7 +148,7 @@ function render(){
   }
   free.sort((a,b)=>{
     if(state.waiverMode==="rookie")return b.breakoutScore-a.breakoutScore||b.developmentScore-a.developmentScore||a.rank-b.rank||b.value-a.value||a.name.localeCompare(b.name);
-    if(state.waiverMode==="ir")return (b.marketScore*.55+(b.age>0?Math.max(0,100-b.age*5):35)*.20+(b.depth<99?Math.max(0,6-b.depth)*10:0)*.25)-(a.marketScore*.55+(a.age>0?Math.max(0,100-a.age*5):35)*.20+(a.depth<99?Math.max(0,6-a.depth)*10:0)*.25)||b.value-a.value;
+    if(state.waiverMode==="ir")return (b.marketScore*.55+(b.age>0?Math.max(0,Math.min(100,100-Math.max(0,b.age-20)*8)):35)*.20+(b.depth<99?Math.max(0,6-b.depth)*10:0)*.25)-(a.marketScore*.55+(a.age>0?Math.max(0,Math.min(100,100-Math.max(0,a.age-20)*8)):35)*.20+(a.depth<99?Math.max(0,6-a.depth)*10:0)*.25)||b.value-a.value;
     const aProj=Number.isFinite(a.projectedPoints)&&a.projectedPoints>0?a.projectedPoints:0,bProj=Number.isFinite(b.projectedPoints)&&b.projectedPoints>0?b.projectedPoints:0;
     const aPPG=Number.isFinite(a.avgPoints)&&a.avgPoints>0?a.avgPoints:0,bPPG=Number.isFinite(b.avgPoints)&&b.avgPoints>0?b.avgPoints:0;
     return (bProj*5+bPPG*3+b.need*.35+b.depthScore*2+b.marketScore*.10)-(aProj*5+aPPG*3+a.need*.35+a.depthScore*2+a.marketScore*.10)||a.name.localeCompare(b.name)
