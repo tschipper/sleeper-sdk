@@ -528,7 +528,7 @@ async function load(){
    const nflStateForSchedule=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
    const scheduleSeason=Number(nflStateForSchedule.season)||new Date().getFullYear();
    const scheduleWeek=Number(nflStateForSchedule.week)||Number(nflStateForSchedule.display_week)||1;
-   const board=await getJSON("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+scheduleWeek+"&seasontype=2&season="+scheduleSeason);
+   const board=await getJSON("https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+scheduleWeek+"&seasontype=2&season="+scheduleSeason);
    for(const event of board.events||[]){
     const comp=event.competitions&&event.competitions[0],teams=comp?.competitors||[];
     const home=teams.find(t=>t.homeAway==="home")?.team?.abbreviation,away=teams.find(t=>t.homeAway==="away")?.team?.abbreviation;
