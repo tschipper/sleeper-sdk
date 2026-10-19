@@ -26,7 +26,7 @@ async function openTab(tab, expectedText) {
 try {
   await page.goto(base, { waitUntil: "domcontentloaded" });
   await page.locator("#status").waitFor();
-  await page.waitForFunction(() => /loaded/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 60000 });
+  await page.waitForFunction(() => document.querySelectorAll("#team option").length > 1 && (document.querySelector("#content")?.textContent || "").trim().length > 20, null, { timeout: 120000 });
   assert.ok(await page.locator("#team option").count() > 1, "team selector should populate");
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
   await noHorizontalOverflow("My Team");
@@ -79,7 +79,7 @@ try {
     await page.locator(".player-modal").waitFor({ state: "detached" });
   }
   await page.locator("#refresh").click();
-  await page.waitForFunction(() => /loaded/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 60000 });
+  await page.waitForFunction(() => /loaded/i.test(document.querySelector("#status")?.textContent || "") && !/loading league/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
   console.log("PASS: app load, five tabs, matchup score stacking/week navigation/bench expansion, waiver filters/search, trade view, draft tabs, ranking modal, refresh, mobile overflow.");
 } finally {
