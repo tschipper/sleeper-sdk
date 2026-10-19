@@ -77,13 +77,15 @@ try {
   const selectedTeamLabel = await page.locator("#team option:checked").innerText();
   const matchupTeamLabel = await page.locator(".matchup-team-title").first().innerText();
   assert.equal(matchupTeamLabel, selectedTeamLabel, "team name should match between roster selector and matchup header");
-  const score = page.locator(".matchup-team-header .matchup-score").first();
-  if (await score.count()) {
+  const scoreStacks = page.locator(".matchup-team-header .matchup-score");
+  assert.ok(await scoreStacks.count() >= 2, "both matchup teams should show score stacks");
+  for (let i = 0; i < await scoreStacks.count(); i++) {
+    const score = scoreStacks.nth(i);
     const actual = await score.locator("strong").boundingBox();
     const projection = await score.locator("span").boundingBox();
-    assert.ok(actual && projection, "actual and projected scores should both render");
+    assert.ok(actual && projection, "team " + i + " actual and projected scores should both render");
     assert.ok(projection.y > actual.y && Math.abs((projection.x + projection.width / 2) - (actual.x + actual.width / 2)) < 4,
-      "projected score should be directly underneath actual score");
+      "team " + i + " projected score should be centered directly underneath actual score");
   }
   const nextWeek = page.locator('[data-week="1"]').first();
   if (await nextWeek.count()) {
@@ -138,7 +140,22 @@ try {
 
   await openTab("team", "Starters");
   const playerButton = page.locator("#content .player-name-open").first();
-  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" }); await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" }); await page.locator(".player-modal-close").click(); await page.locator(".player-modal").waitFor({ state: "detached" }); await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
+  if (await playerButton.count()) {
+    await playerButton.click();
+    await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
+    await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" });
+    await page.locator(".player-modal-close").click();
+    await page.locator(".player-modal").waitFor({ state: "detached" });
+    await playerButton.click();
+    await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
+    await page.keyboard.press("Escape");
+    await page.locator(".player-modal").waitFor({ state: "detached" });
+    await playerButton.click();
+    await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
+    await page.locator(".player-modal-backdrop").click({ position: { x: 3, y: 3 } });
+    await page.locator(".player-modal").waitFor({ state: "detached" });
+  }
   const ranking = page.locator("#content [data-ranking]").first();
   if (await ranking.count()) {
     await ranking.click();
@@ -154,6 +171,7 @@ try {
   for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
   await page.setViewportSize({ width: 1280, height: 900 });
   for (const [tab, label] of [["team","Starters"],["matchup","Starters"],["waivers","Waiver Wire"],["trades","Trade"],["draft","Future Draft"]]) await openTab(tab, label);
+  await auditPage("desktop final state");
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
   console.log("PASS: app load, five tabs at mobile and desktop widths, matchup score stacking/week navigation/bench expansion, waiver filters/search, trade view, draft tabs, ranking modal/Escape, refresh, and overflow checks.");
 } finally {
