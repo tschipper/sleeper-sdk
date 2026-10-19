@@ -421,7 +421,7 @@ async function load(){
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
   const league=await getJSON("https://api.sleeper.app/v1/league/"+id);
-  if(league.name){const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name;leagueNames[id]=league.name}
+  await Promise.all(Object.keys(leagueNames).map(async leagueId=>{try{const data=leagueId===id?league:await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not load name for league "+leagueId+": "+err.message)}}));
   const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);
   state.league=league;state.rosters=rosters;state.users=users;
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];
