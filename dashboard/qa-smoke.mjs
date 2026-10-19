@@ -41,6 +41,7 @@ async function openTab(tab, expectedText) {
 
 try {
   await page.goto(base, { waitUntil: "domcontentloaded" });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
   await page.locator("#status").waitFor();
   await page.waitForFunction(() => document.querySelectorAll("#team option").length > 1 && (document.querySelector("#content")?.textContent || "").trim().length > 20, null, { timeout: 120000 });
   await page.waitForFunction(() => typeof state !== "undefined" && Object.keys(state.schedule || {}).length > 0, null, { timeout: 20000 });
@@ -107,6 +108,11 @@ try {
   for (const selector of ["#mt-add-give", "#mt-add-get", "#trade-view"]) {
     const control = page.locator(selector);
     if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
+  }
+  const copyTrade = page.locator("#mt-copy");
+  if (await copyTrade.count()) {
+    await copyTrade.click();
+    await page.waitForFunction(() => /trade summary copied/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 10000 });
   }
   const removeAsset = page.locator("[data-mt-remove]").first();
   if (await removeAsset.count()) { await removeAsset.click(); await noHorizontalOverflow("trade asset removal"); }
