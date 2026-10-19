@@ -27,6 +27,7 @@ try {
   await page.goto(base, { waitUntil: "domcontentloaded" });
   await page.locator("#status").waitFor();
   await page.waitForFunction(() => document.querySelectorAll("#team option").length > 1 && (document.querySelector("#content")?.textContent || "").trim().length > 20, null, { timeout: 120000 });
+  await page.waitForFunction(() => typeof state !== "undefined" && Object.keys(state.schedule || {}).length > 0, null, { timeout: 20000 });
   assert.ok(await page.locator("#team option").count() > 1, "team selector should populate");
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
   await noHorizontalOverflow("My Team");
