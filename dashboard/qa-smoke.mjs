@@ -31,6 +31,7 @@ try {
   assert.ok(await page.locator("#team option").count() > 1, "team selector should populate");
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
   assert.ok(await page.locator(".team-identity-card").count() === 1, "roster page should show consistent team identity");
+  await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible" });
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
   const accessibilityAudit = await page.evaluate(() => ({
     duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
