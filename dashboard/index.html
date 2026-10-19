@@ -61,7 +61,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 <script>
 const $=s=>document.querySelector(s);
 const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},usageTrends:{},weeklyPPG:{},weeklyProjection:{},weeklyProjectionHistory:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,nflWeek:1,marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3};
-const leagueNames={"1313702361549529088":"League 1","1313937831093080064":"League 2"};
+const leagueNames={"1313702361549529088":"Loading league…","1313937831093080064":"Loading league…"};
 const ORIGINAL_PROJECTION_KEY="sleeper_gm_original_projections_v1";
 function readOriginalProjections(){try{return JSON.parse(localStorage.getItem(ORIGINAL_PROJECTION_KEY)||"{}")}catch(e){return {}}}
 function originalProjectionKey(leagueId,season,week,playerId){return [leagueId,season,week,playerId].map(String).join(":")}
@@ -113,9 +113,9 @@ function render(){
    const playerPos=String(p.position||"").toUpperCase();
    const isIDP=["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(playerPos);
    if(!positions.has(playerPos))continue;
-   if(state.waiverMode==="ir"&&!/(injured reserve|reserve\/injured|\bir\b|\bpup\b|\bnfi\b|non[- ]football injury|out|doubtful|injur|physically unable)/i.test([p.injury_status,p.status,p.injury_notes,p.injury_body_part].filter(Boolean).join(" ")))continue;
+   if(state.waiverMode==="ir"&&!/(injured reserve|reserve\/injured|^ir$|^pup$|physically unable to perform)/i.test([p.injury_status,p.status].filter(Boolean).join(" ").trim()))continue;
    if(state.waiverMode==="rookie"&&(!(Number(p.years_exp)>=0&&Number(p.years_exp)<=1||Number(p.rookie_year)===Number(state.league?.season||new Date().getFullYear()))||isIDP||!["QB","RB","WR","TE"].includes(playerPos)))continue;
-   if(state.waiverMode==="today"&&String(p.injury_status||"").toLowerCase().includes("ir"))continue;
+   if(state.waiverMode==="today"&&/(injured reserve|reserve\/injured|^ir$|^pup$|physically unable to perform)/i.test([p.injury_status,p.status].filter(Boolean).join(" ").trim()))continue;
    if(["Inactive","Retired"].includes(p.status)) continue;
    const name=p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id);
    if(state.waiverPos==="FLEX"&&!["RB","WR","TE"].includes(playerPos))continue;
@@ -137,18 +137,21 @@ function render(){
    const breakoutScore=Math.round(rankScore*.20+ageScore*.10+draftCapitalScore*.25+opportunityScore*.25+usageScore*.20);
    const breakoutLabel=breakoutScore>=75?"High":breakoutScore>=55?"Medium":breakoutScore>=35?"Low":"Unlikely";
    const breakoutReason=depthOrder===1?"Top of depth chart":depthOrder===2?"Second on depth chart":depthOrder===3?"Needs an opening":depthOrder<99?"Buried on depth chart":"Depth chart data unavailable";
-   const pickupScore=Math.round(need*.45+marketScore*.20+productionScore*.20+roleScore*.15);
+   const depthScore=depthOrder<99?Math.max(0,Math.min(100,110-depthOrder*18)):0;
+   const pickupScore=Math.round(need*.25+productionScore*.25+Math.max(0,Math.min(100,(Number.isFinite(projection)&&projection>0?projection:0)*5))*.35+depthScore*.10+marketScore*.05);
    const change=market?.valueChange?.sf_dynasty?.days30;
    const trend=change==null?"Trend unavailable":change>0?"Trending up":change<0?"Trending down":"Holding steady";
    const trendIcon=change==null?"":change>0?" ↗":change<0?" ↘":"";
    const age=Number(market?.age??p.age);
    const avgPoints=state.weeklyPPG[String(id)];const projectedPoints=state.weeklyProjection[String(id)];const injuryText=[p.injury_status,p.status,p.injury_notes,p.injury_body_part].filter(Boolean).join(" ");const injuryStatusRaw=String(p.injury_status||"").trim();const statusRaw=String(p.status||"").trim();const injuryDesignation=injuryStatusRaw||(/injured reserve|reserve\/injured|^ir$|^out$|^doubtful$|^questionable$|^pup$|^nfi$|non-football injury|physically unable/i.test(statusRaw)?statusRaw:"")||((injuryText.match(/injured reserve|reserve\/injured|physically unable to perform|non-football injury|\bPUP\b|\bNFI\b|\bIR\b|\bOut\b|\bDoubtful\b|\bQuestionable\b/i)||[])[0]||"");const seasonEnding=/out for (the )?season|season[- ]ending|rest of season/i.test(injuryText);const explicitReturn=injuryText.match(/(?:return|back|eligible to return|expected back)[^.;]{0,35}(week\s*\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2})/i);const returnOutlook=seasonEnding?"Out for season":"TBD";
-   free.push({id,p,name,market,value,need,marketScore,pickupScore,developmentScore,breakoutScore,breakoutLabel,breakoutReason,age,avgPoints,projectedPoints,returnOutlook,injuryDesignation,trend,trendIcon,rank:Number(market?.rank?.sf_dynasty)||99999,dynastyRank:Number(market?.rank?.sf_dynasty)||null,depth:depthOrder,draftYear,draftRound,draftPick,draftedBy,draftTotal,collegePPG});
+   free.push({id,p,name,market,value,need,marketScore,pickupScore,developmentScore,breakoutScore,breakoutLabel,breakoutReason,age,avgPoints,projectedPoints,returnOutlook,injuryDesignation,trend,trendIcon,rank:Number(market?.rank?.sf_dynasty)||99999,dynastyRank:Number(market?.rank?.sf_dynasty)||null,depth:depthOrder,depthScore,draftYear,draftRound,draftPick,draftedBy,draftTotal,collegePPG});
   }
   free.sort((a,b)=>{
     if(state.waiverMode==="rookie")return b.breakoutScore-a.breakoutScore||b.developmentScore-a.developmentScore||a.rank-b.rank||b.value-a.value||a.name.localeCompare(b.name);
     if(state.waiverMode==="ir")return (b.marketScore*.55+(b.age>0?Math.max(0,100-b.age*5):35)*.20+(b.depth<99?Math.max(0,6-b.depth)*10:0)*.25)-(a.marketScore*.55+(a.age>0?Math.max(0,100-a.age*5):35)*.20+(a.depth<99?Math.max(0,6-a.depth)*10:0)*.25)||b.value-a.value;
-    return b.pickupScore-a.pickupScore||b.value-a.value||a.rank-b.rank||a.name.localeCompare(b.name)
+    const aProj=Number.isFinite(a.projectedPoints)&&a.projectedPoints>0?a.projectedPoints:0,bProj=Number.isFinite(b.projectedPoints)&&b.projectedPoints>0?b.projectedPoints:0;
+    const aPPG=Number.isFinite(a.avgPoints)&&a.avgPoints>0?a.avgPoints:0,bPPG=Number.isFinite(b.avgPoints)&&b.avgPoints>0?b.avgPoints:0;
+    return (bProj*5+bPPG*3+b.need*.35+b.depthScore*2+b.marketScore*.10)-(aProj*5+aPPG*3+a.need*.35+a.depthScore*2+a.marketScore*.10)||a.name.localeCompare(b.name)
   });
    const shown=free.slice(0,100);
   const cutTarget=()=>{if(!roster)return null;const starterIds=new Set((roster.starters||[]).map(String)),reserveIds=new Set((roster.reserve||[]).map(String)),taxiIds=new Set((roster.taxi||[]).map(String));const slots=(state.league?.roster_positions||[]).filter(s=>!["BN","IR","TAXI","RESERVE"].includes(String(s).toUpperCase()));const canonical=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");const eligible=(slot,p)=>{const s=canonical(slot),q=p?.position||"";if(["QB","RB","WR","TE","K","DEF"].includes(s))return q===s;if(["FLEX","RECFLEX"].includes(s))return ["RB","WR","TE"].includes(q);if(s==="WRRBFLEX")return ["RB","WR"].includes(q);if(s==="SUPERFLEX")return ["QB","RB","WR","TE"].includes(q);if(["IDPFLEX","FLEXIDP"].includes(s))return ["IDP","DL","LB","DB","DE","DT","CB","S","EDGE","NT"].includes(q);return false};const canFillLineup=excluded=>{const ids=(roster.players||[]).map(String).filter(pid=>pid!==excluded&&!reserveIds.has(pid)&&!taxiIds.has(pid));const candidates=ids.map(id=>({id,p:state.players[id]||{}}));const ordered=slots.map((slot,i)=>({slot,i,n:candidates.filter(x=>eligible(slot,x.p)).length})).sort((a,b)=>a.n-b.n||a.i-b.i);const used=new Set();for(const s of ordered){const pick=candidates.find(x=>!used.has(x.id)&&eligible(s.slot,x.p));if(!pick)return false;used.add(pick.id)}return true};const benchIds=(roster.players||[]).map(String).filter(pid=>!starterIds.has(pid)&&!reserveIds.has(pid)&&!taxiIds.has(pid));const ranked=benchIds.filter(pid=>canFillLineup(pid)).map(pid=>{const p=state.players[pid]||{},m=state.marketPlayers[pid]||{};return {id:pid,name:playerName(pid),position:p.position||"—",age:Number(m?.age??p.age),injury:p.injury_status||""}}).sort((a,b)=>(Number.isFinite(b.age)?b.age:0)-(Number.isFinite(a.age)?a.age:0));return ranked[0]||null};
@@ -418,6 +421,7 @@ async function load(){
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
   const league=await getJSON("https://api.sleeper.app/v1/league/"+id);
+  if(league.name){const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name;leagueNames[id]=league.name}
   const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);
   state.league=league;state.rosters=rosters;state.users=users;
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];
