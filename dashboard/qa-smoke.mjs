@@ -102,7 +102,7 @@ try {
 
   await openTab("team", "Starters");
   const playerButton = page.locator("#content .player-name-open").first();
-  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
+  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" }); await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
   const ranking = page.locator("#content [data-ranking]").first();
   if (await ranking.count()) {
     await ranking.click();
