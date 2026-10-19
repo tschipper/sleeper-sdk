@@ -459,7 +459,20 @@ async function load(){
    }catch(err){diag("Actual points unavailable: "+err.message)}
   const season=Number(nflState.season)||new Date().getFullYear();
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
-  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; using "+scoreKey);
+  const leagueScoring=league.scoring_settings||{};
+  const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
+  const leaguePointsFromStats=row=>{
+   let total=0,matched=0;
+   for(const [key,multiplierValue] of Object.entries(leagueScoring)){
+    const multiplier=Number(multiplierValue);
+    if(!Number.isFinite(multiplier)||multiplier===0||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
+    if(!Object.prototype.hasOwnProperty.call(row,key))continue;
+    const value=Number(row[key]);if(!Number.isFinite(value))continue;
+    total+=value*multiplier;matched++;
+   }
+   return matched?total:null;
+  };
+  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; using "+scoreKey+" fallback plus league scoring settings");
   state.weeklyPPG={};state.weeklyProjection={};
   const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
@@ -473,8 +486,10 @@ async function load(){
     for(const [key,s] of entries){
      const pid=String(s?.player_id??s?.playerId??s?.id??key);
      const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
-     const raw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
-     if(raw===undefined||raw===null||pid.startsWith("TEAM_"))continue;
+     if(pid.startsWith("TEAM_"))continue;
+     const customPts=leaguePointsFromStats(row);
+     const raw=customPts!==null?customPts:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std);
+     if(raw===undefined||raw===null)continue;
      const pts=Number(raw);if(!Number.isFinite(pts))continue;
      (state.weeklyHistory[pid]||(state.weeklyHistory[pid]=[])).push({week:wi+1,points:pts});
      totals[pid]=(totals[pid]||0)+pts;counts[pid]=(counts[pid]||0)+1;
