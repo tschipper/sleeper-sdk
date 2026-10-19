@@ -17,6 +17,10 @@ async function noHorizontalOverflow(label) {
   assert.ok(result.document <= result.viewport + 1 && result.body <= result.viewport + 1,
     label + " has horizontal overflow: " + JSON.stringify(result));
 }
+async function assertByeLabels(label) {
+  const violations = await page.locator(".waiver-card, .player-row, .matchup-player").evaluateAll(nodes => nodes.filter(el => /BYE WEEK/.test(el.innerText || "") && /Kickoff TBD/.test(el.innerText || "")).map(el => (el.innerText || "").slice(0, 180)));
+  assert.deepEqual(violations, [], label + ": bye-week players must not also show Kickoff TBD");
+}
 async function auditPage(label) {
   const audit = await page.evaluate(() => ({
     duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
@@ -31,6 +35,7 @@ async function openTab(tab, expectedText) {
   await page.locator('nav [data-tab="' + tab + '"]').click();
   await page.locator("#content").getByText(expectedText, { exact: false }).first().waitFor({ state: "visible", timeout: 15000 });
   await noHorizontalOverflow(tab);
+  await assertByeLabels(tab);
   await auditPage(tab);
 }
 
