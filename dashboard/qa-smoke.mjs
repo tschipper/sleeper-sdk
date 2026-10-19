@@ -30,6 +30,8 @@ try {
   await page.waitForFunction(() => typeof state !== "undefined" && Object.keys(state.schedule || {}).length > 0, null, { timeout: 20000 });
   assert.ok(await page.locator("#team option").count() > 1, "team selector should populate");
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
+  assert.ok(await page.locator(".team-identity-card").count() === 1, "roster page should show consistent team identity");
+  assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
   await noHorizontalOverflow("My Team");
 
   await openTab("matchup", "Starters");
@@ -58,6 +60,8 @@ try {
   await openTab("waivers", "Waiver Wire");
   const mode = page.locator("[data-waiver-mode]").last();
   if (await mode.count()) { await mode.click(); await noHorizontalOverflow("waiver mode change"); }
+  const cutSuggestion = page.locator(".cut-suggest").first();
+  if (await cutSuggestion.count()) { await cutSuggestion.click(); await page.locator(".waiver-cut").waitFor({ state: "visible", timeout: 10000 }); }
   const search = page.locator("#waiver-search");
   if (await search.count()) { await search.fill("xyz-no-match-test"); await noHorizontalOverflow("waiver search"); await search.fill(""); }
 
@@ -66,6 +70,8 @@ try {
     const control = page.locator(selector);
     if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
   }
+  const removeAsset = page.locator("[data-mt-remove]").first();
+  if (await removeAsset.count()) { await removeAsset.click(); await noHorizontalOverflow("trade asset removal"); }
   await noHorizontalOverflow("trade analyzer");
 
   await openTab("draft", "Future Draft");
@@ -75,6 +81,8 @@ try {
   if (await future.count()) { await future.click(); await noHorizontalOverflow("future draft"); }
 
   await openTab("team", "Starters");
+  const playerButton = page.locator("#content .player-name-open").first();
+  if (await playerButton.count()) { await playerButton.click(); await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 }); await page.keyboard.press("Escape"); await page.locator(".player-modal").waitFor({ state: "detached" }); }
   const ranking = page.locator("#content [data-ranking]").first();
   if (await ranking.count()) {
     await ranking.click();
