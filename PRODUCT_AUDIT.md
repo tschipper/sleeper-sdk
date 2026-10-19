@@ -41,7 +41,7 @@ The **KTC Daily Snapshot** workflow generated its dated data branch on 2026-10-1
 
 ## Current automated QA
 
-The Playwright smoke workflow loads a real league, exercises the five main tabs, switches teams and checks identity consistency, checks matchup score stacking and week navigation, expands reserves, exercises waiver and trade actions, opens/closes player details, refreshes data, and checks for browser errors. It audits duplicate IDs, accessible names, bye-week labels, and horizontal overflow at 320px, phone, tablet, and desktop widths.
+The Playwright smoke workflow loads a real league, exercises all five main tabs, switches teams and checks identity consistency, verifies actual/projected scores are vertically stacked for both matchup teams, tests week navigation and reserve expansion, exercises every waiver mode and trade add/remove/copy/clear action, checks the next-year-only draft view, and refreshes data. Player details are tested with close button, Escape, and backdrop dismissal; standings, Max PF, and dynasty-outlook detail modals are also opened and closed. It audits duplicate IDs, accessible names on buttons and fields, contradictory bye-week labels, browser errors, and horizontal overflow at 320px, phone, tablet, and desktop widths.
 
 Latest verified UI smoke run: https://github.com/tschipper/sleeper-sdk/actions/runs/39252115991  
 Latest verified dashboard deployment: https://github.com/tschipper/sleeper-sdk/actions/runs/39252116008
