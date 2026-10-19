@@ -96,22 +96,22 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 .matchup-score-header .matchup-team-header:last-child .matchup-team-title,.matchup-score-header .matchup-team-header:last-child .matchup-team-record,.matchup-score-header .matchup-team-header:last-child .matchup-header-remaining{text-align:right!important}
 @media(max-width:420px){.matchup-score-header{grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr)!important;gap:8px!important;padding:14px 10px 13px!important}.matchup-score-header .matchup-avatar{width:38px;height:38px;flex-basis:38px}.matchup-score-header .matchup-team-topline{min-height:40px}.matchup-score-header .matchup-win{font-size:11px}.matchup-score-header .matchup-winbar{margin:5px 0 8px;height:5px}.matchup-score-header .matchup-header-score>div:first-child strong{font-size:18px!important}.matchup-score-header .matchup-header-score>div+div strong{font-size:14px!important}.matchup-score-header .matchup-team-title{font-size:13px!important}.matchup-score-header .matchup-team-record,.matchup-score-header .matchup-header-remaining{font-size:9px!important}.matchup-score-header .matchup-vs{font-size:10px!important;min-width:30px!important;padding:7px 2px!important}}
 
-/* Prevent overlap in the compact matchup header */
+/* QA pass: stack actual and projected points; keep win percentage beside avatar */
 .matchup-score-header .matchup-team-topline{display:grid!important;align-items:center!important;gap:5px!important;min-height:0!important}
-.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:32px minmax(0,1fr)!important}
+.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:29px minmax(0,1fr) auto!important}
 .matchup-score-header .matchup-team-header:first-child .matchup-avatar{grid-column:1;grid-row:1}
 .matchup-score-header .matchup-team-header:first-child .matchup-score{grid-column:2;grid-row:1;justify-self:center!important;align-items:center!important}
-.matchup-score-header .matchup-team-header:first-child .matchup-win{grid-column:1/-1;grid-row:2;justify-self:start!important;text-align:left!important;margin-left:0!important;margin-top:4px!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:minmax(0,1fr) 32px!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-score{grid-column:1;grid-row:1;justify-self:center!important;align-items:center!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-win{grid-column:1;grid-row:2;justify-self:end!important;text-align:right!important;margin-top:4px!important}
-.matchup-score-header .matchup-team-header:last-child .matchup-avatar{grid-column:2;grid-row:1}
-.matchup-score-header .matchup-score{min-width:0!important}
-.matchup-score-header .matchup-score strong{font-size:14px!important;white-space:nowrap!important}
-.matchup-score-header .matchup-score span{font-size:10px!important;white-space:nowrap!important}
-.matchup-score-header .matchup-win{font-size:10px!important;line-height:1.2!important}
+.matchup-score-header .matchup-team-header:first-child .matchup-win{grid-column:3;grid-row:1;justify-self:end!important;text-align:right!important;margin:0!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:auto minmax(0,1fr) 29px!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-score{grid-column:2;grid-row:1;justify-self:center!important;align-items:center!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-win{grid-column:1;grid-row:1;justify-self:start!important;text-align:left!important;margin:0!important}
+.matchup-score-header .matchup-team-header:last-child .matchup-avatar{grid-column:3;grid-row:1}
+.matchup-score-header .matchup-score{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;text-align:center!important;padding:0!important;background:transparent!important;border:0!important}
+.matchup-score-header .matchup-score strong{display:block!important;font-size:13px!important;line-height:1.1!important;font-weight:750!important;white-space:nowrap!important}
+.matchup-score-header .matchup-score span{display:block!important;font-size:10px!important;line-height:1.1!important;color:#9bb2d2!important;white-space:nowrap!important}
+.matchup-score-header .matchup-win{font-size:9px!important;line-height:1.2!important;white-space:nowrap!important}
 .matchup-score-header .matchup-winbar{margin-top:7px!important}
-@media(max-width:420px){.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:29px minmax(0,1fr)!important}.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:minmax(0,1fr) 29px!important}.matchup-score-header .matchup-avatar{width:29px!important;height:29px!important;flex-basis:29px!important}.matchup-score-header .matchup-score strong{font-size:13px!important}.matchup-score-header .matchup-score span{font-size:9px!important}.matchup-score-header .matchup-win{font-size:9px!important}}
+@media(max-width:420px){.matchup-score-header .matchup-team-header:first-child .matchup-team-topline{grid-template-columns:25px minmax(0,1fr) auto!important;gap:4px!important}.matchup-score-header .matchup-team-header:last-child .matchup-team-topline{grid-template-columns:auto minmax(0,1fr) 25px!important;gap:4px!important}.matchup-score-header .matchup-avatar{width:25px!important;height:25px!important;flex-basis:25px!important}.matchup-score-header .matchup-score strong{font-size:12px!important}.matchup-score-header .matchup-score span{font-size:9px!important}.matchup-score-header .matchup-win{font-size:8px!important}}
 </style>
 </head>
 <body>
