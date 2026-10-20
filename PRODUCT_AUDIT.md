@@ -46,7 +46,7 @@ The Playwright smoke workflow syntax-checks the inline dashboard JavaScript befo
 
 The October 20 audit fixed runtime blockers involving position normalization scope and scoring-metadata initialization order, corrected malformed string concatenation in the compact player-projection panel, and made the core roster render before slower stats/projection requests finish.
 
-Latest verified UI smoke run: https://github.com/tschipper/sleeper-sdk/actions/runs/39359977894  
+Latest verified UI smoke run: https://github.com/tschipper/sleeper-sdk/actions/runs/39360153021  
 Latest verified dashboard deployment: https://github.com/tschipper/sleeper-sdk/actions/runs/39359977975
 
 ## Public references used for the comparison
