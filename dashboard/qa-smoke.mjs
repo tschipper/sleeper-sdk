@@ -120,6 +120,9 @@ try {
   if (await search.count()) { await search.fill("xyz-no-match-test"); await noHorizontalOverflow("waiver search"); await search.fill(""); }
 
   await openTab("trades", "Trade");
+  const marketDataNote = page.locator(".market-data-note");
+  assert.equal(await marketDataNote.count(), 1, "trade calculator should disclose market-data source/freshness or unavailability");
+  assert.match(await marketDataNote.innerText(), /Market source: StatsGuyFantasy|Market data unavailable/, "trade market note should explain its source or unavailable state");
   for (const selector of ["#mt-add-give", "#mt-add-get", "#trade-view"]) {
     const control = page.locator(selector);
     if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
