@@ -148,7 +148,14 @@ try {
     }
   }
   const future = page.locator('[data-draft-section="future"]');
-  if (await future.count()) { await future.click(); await noHorizontalOverflow("future draft"); }
+  if (await future.count()) {
+    await future.click();
+    await noHorizontalOverflow("future draft");
+    const researchLinks = page.locator('#content a[href*="dynastydatabase.com/classes/"]');
+    for (let i = 0; i < await researchLinks.count(); i++) {
+      assert.equal(await researchLinks.nth(i).getAttribute("href"), "https://dynastydatabase.com/classes/" + expectedFutureYear, "future draft research should link only to the next available class");
+    }
+  }
 
   await openTab("team", "Starters");
   const playerButton = page.locator("#content .player-name-open").first();
