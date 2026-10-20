@@ -57,6 +57,19 @@ try {
   await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
   assert.equal(await page.locator(".team-identity-card").count(), 1, "roster page should show exactly one consistent team identity card");
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
+  const marketAvailabilityScenario = await page.evaluate(() => {
+    const hasValues = hasMarketValues(), savedAsOf = state.marketAsOf;
+    state.marketAsOf = "";
+    render();
+    const futureOutlook = document.querySelector('[data-ranking="dynasty"] strong')?.textContent.trim();
+    state.marketAsOf = savedAsOf;
+    render();
+    return { hasValues, futureOutlook };
+  });
+  if (marketAvailabilityScenario.hasValues) {
+    assert.notEqual(marketAvailabilityScenario.futureOutlook, "Unavailable",
+      "missing market update-date metadata must not hide otherwise available dynasty values");
+  }
   const accessibilityAudit = await page.evaluate(() => ({
     duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
     unnamedButtons: [...document.querySelectorAll("button")].filter(el => el.getClientRects().length && !(el.innerText || "").trim() && !el.getAttribute("aria-label") && !el.getAttribute("title") && !el.getAttribute("aria-labelledby")).map(el => el.outerHTML.slice(0, 140))
