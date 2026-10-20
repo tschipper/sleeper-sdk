@@ -522,6 +522,10 @@ async function load(){
   $("#team").value=state.selectedRoster;
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
+  // Show the roster shell as soon as the core league and player dictionary are ready.
+  // Stats, projections, market values, and historical feeds should enrich the page, not block it.
+  status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · loading stats and projections…");
+  render();
   try{const [adds,drops]=await Promise.all([getJSON("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100"),getJSON("https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=100")]);if(!current())return;state.trendingAdds=Object.fromEntries((adds||[]).map(x=>[String(x.player_id),Number(x.count)||0]));state.trendingDrops=Object.fromEntries((drops||[]).map(x=>[String(x.player_id),Number(x.count)||0]))}catch(err){if(!current())return;state.trendingAdds={};state.trendingDrops={};diag("Sleeper trending data unavailable: "+err.message)}if(!current())return;
   try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");if(!current())return;state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){if(!current())return;state.marketPlayers={};state.marketAsOf="";state.marketError=err.message}if(!current())return;
   const scheduleMap={};
