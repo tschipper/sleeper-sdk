@@ -24,6 +24,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Check inline dashboard JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("dashboard/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r'<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.IGNORECASE | re.DOTALL)
+          if not scripts:
+              raise SystemExit("No inline JavaScript found in dashboard/index.html")
+          for index, script in enumerate(scripts):
+              Path(f"/tmp/dashboard-inline-{index}.js").write_text(script, encoding="utf-8")
+          print(f"Extracted {len(scripts)} inline script(s)")
+          PY
+          for file in /tmp/dashboard-inline-*.js; do node --check "$file"; done
       - name: Install Playwright
         run: |
           npm install --no-save playwright
