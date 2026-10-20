@@ -234,7 +234,7 @@ try {
     state.marketPlayers = { ...state.marketPlayers, [id]: { ...(state.marketPlayers[id] || {}), rank: { sf_dynasty: 9999 } } };
     return { savedPPG, savedMarket };
   });
-  const playerButton = page.locator("#content [data-player][data-panel="projections"]").first();
+  const playerButton = page.locator('#content [data-player][data-panel="projections"]').first();
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
