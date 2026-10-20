@@ -223,6 +223,17 @@ try {
     await page.evaluate(saved => { state.tradedPicks = saved; render(); }, pickOwnershipScenario.savedTradedPicks);
     await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), originalTeamId, { timeout: 10000 });
   }
+  const ppgRankScenario = await page.evaluate(() => {
+    const button = document.querySelector("#content .player-name-open[data-player]");
+    const id = button?.dataset.player;
+    if (!id) return null;
+    const savedPPG = state.weeklyPPG, savedMarket = state.marketPlayers;
+    state.weeklyPPG = { ...state.weeklyPPG };
+    Object.keys(state.players).forEach(playerId => { state.weeklyPPG[playerId] = 0; });
+    state.weeklyPPG[id] = 100;
+    state.marketPlayers = { ...state.marketPlayers, [id]: { ...(state.marketPlayers[id] || {}), rank: { sf_dynasty: 9999 } } };
+    return { savedPPG, savedMarket };
+  });
   const playerButton = page.locator("#content .player-name-open").first();
   if (await playerButton.count()) {
     await playerButton.click();
@@ -231,10 +242,12 @@ try {
     await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
     const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
     assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
+    assert.match(summaryLines[0] || "", /#1.*Overall #1/, "player ranks should follow PPG even when the dynasty market rank conflicts");
     assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
     assert.equal(await page.locator(".player-summary-note, .player-summary-details").count(), 0, "player details should omit extra ranking/projection explanations");
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
+    if (ppgRankScenario) await page.evaluate(saved => { state.weeklyPPG = saved.savedPPG; state.marketPlayers = saved.savedMarket; render(); }, ppgRankScenario);
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
     await page.keyboard.press("Escape");
