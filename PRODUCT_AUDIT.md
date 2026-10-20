@@ -21,7 +21,7 @@
 - **Waivers:** available-player search and modes, roster-aware recommendations, rookie indicators, injury and bye labels, and Sleeper-wide trending adds/drops when available.
 - **Trades:** qualitative market comparison, positional-needs and depth analysis, partner activity/history, suggested packages, asset removal/clear, and copyable plain-language trade summaries.
 - **Draft:** future picks and rookie recommendations for the next available year, plus historical draft recaps with NFL draft-team, college, college PPG, NFL current-season PPG, fantasy drafting team, and rookie indicators where data is available.
-- **Player details:** projections and actuals, weekly history, fantasy news, separate position and overall dynasty rankings, and league-specific rostered / started rates where data is available.
+- **Player details:** concise position and overall ranks calculated from season PPG, Sleeper rostered / started rates where available, weekly projection / actual / season-average PPG, game-by-game stats, and fantasy news.
 - **Load behavior:** render the core dashboard before slower stats and projection feeds finish, then update when the full refresh completes.
 
 ## Competitive comparison and deliberate scope
