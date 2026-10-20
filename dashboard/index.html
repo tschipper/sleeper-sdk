@@ -534,7 +534,7 @@ async function load(){
     const comp=event.competitions&&event.competitions[0],teams=comp?.competitors||[];
     const home=teams.find(t=>t.homeAway==="home")?.team?.abbreviation,away=teams.find(t=>t.homeAway==="away")?.team?.abbreviation;
     if(!home||!away)continue;
-    for(const team of [home,away])scheduleForTeam(team)={home,away,date:event.date,state:event.status?.type?.state||event.status?.type?.name||""};
+    for(const team of [home,away])state.schedule[team]={home,away,date:event.date,state:event.status?.type?.state||event.status?.type?.name||""};
    }
   }catch(err){diag("Schedule unavailable: "+err.message)}if(!current())return;
   const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));if(!current())return;
