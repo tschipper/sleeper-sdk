@@ -586,7 +586,7 @@ async function load(){
     for(const [key,multiplierValue] of Object.entries(leagueScoring)){
      const multiplier=Number(multiplierValue);
      if(!Number.isFinite(multiplier)||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
-     const standardMultiplier=key==="rec"?recPoints:(Object.prototype.hasOwnProperty.call(defaultScoring,key)?defaultScoring[key]:0);
+     const baselineRecPoints=scoreKey==="pts_std"?0:scoreKey==="pts_half_ppr"?.5:1;const standardMultiplier=key==="rec"?baselineRecPoints:(Object.prototype.hasOwnProperty.call(defaultScoring,key)?defaultScoring[key]:0);
      const delta=multiplier-standardMultiplier;
      if(!delta)continue;
      const statRaw=row?.[key];
