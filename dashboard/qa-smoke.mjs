@@ -165,8 +165,8 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Rostered in your league", { exact: true }).waitFor({ state: "visible" });
-    await page.getByText("Started in your league", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Rostered on Sleeper", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Started on Sleeper", { exact: true }).waitFor({ state: "visible" });
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
     await playerButton.click();
