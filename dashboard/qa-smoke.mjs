@@ -238,16 +238,15 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Fantasy PPG rank:", { exact: true }).waitFor({ state: "visible" });
-    await page.getByText("Dynasty market rank:", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
     const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
-    assert.match(summaryLines[0] || "", /Fantasy PPG rank:.*Overall/, "player details should show position and overall fantasy PPG ranks on one concise line");
-    assert.match(summaryLines[0] || "", /#1.*Overall #1/, "fantasy PPG ranks should follow season production even when dynasty market rank conflicts");
-    assert.match(summaryLines[1] || "", /Dynasty market rank:.*Overall #9999/, "player details should keep dynasty market rank distinct from PPG rank");
-    assert.match(summaryLines[2] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
+    assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
+    assert.match(summaryLines[0] || "", /#1.*Overall #1/, "the displayed ranks should follow season PPG even when the dynasty market rank conflicts");
+    assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
+    assert.equal(summaryLines.length, 3, "player details should keep the summary to rank, Sleeper usage, and weekly PPG lines");
     assert.equal(await page.locator(".player-summary-note, .player-summary-details").count(), 0, "player details should omit extra ranking/projection explanations");
-    assert.match(summaryLines[3] || "", /Week \d+: Projection .* · Actual .* · Season avg .* PPG/, "player details should show the concise weekly projection, actual, and season PPG line");
+    assert.match(summaryLines[2] || "", /Week \d+: Projection .* · Actual .* · Season avg .* PPG/, "player details should show the concise weekly projection, actual, and season PPG line");
     assert.equal(await page.getByRole("heading", { name: "Game-by-game stats, projection & actual" }).count(), 1, "player details should show the game-by-game stats heading");
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
