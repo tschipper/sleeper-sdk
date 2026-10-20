@@ -238,10 +238,10 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Fantasy PPG rank:", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
     const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
-    assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
+    assert.match(summaryLines[0] || "", /Fantasy PPG rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
     assert.match(summaryLines[0] || "", /#1.*Overall #1/, "player ranks should follow PPG even when the dynasty market rank conflicts");
     assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
     assert.equal(await page.locator(".player-summary-note, .player-summary-details").count(), 0, "player details should omit extra ranking/projection explanations");
