@@ -1,6 +1,6 @@
 # Sleeper GM — Product and QA Audit
 
-**Reviewed:** 2026-10-19  
+**Reviewed:** 2026-10-20  
 **Live dashboard:** https://tschipper.github.io/sleeper-sdk/dashboard/  
 **Rollback point:** `backup/pre-full-qa-2026-10-19`
 
@@ -20,8 +20,9 @@
 - **Matchup:** team avatars and names, actual and projected scores, estimated win chance (clearly labeled as an estimate), week navigation, starters, and a combined collapsible bench / IR / taxi list.
 - **Waivers:** available-player search and modes, roster-aware recommendations, rookie indicators, injury and bye labels, and Sleeper-wide trending adds/drops when available.
 - **Trades:** qualitative market comparison, positional-needs and depth analysis, partner activity/history, suggested packages, asset removal/clear, and copyable plain-language trade summaries.
-- **Draft:** future picks and rookie recommendations for the next available year, plus historical draft recaps.
-- **Player details:** projections and actuals, weekly history, fantasy news, and league-specific rostered / started rates where data is available.
+- **Draft:** future picks and rookie recommendations for the next available year, plus historical draft recaps with NFL draft-team, college, college PPG, NFL current-season PPG, fantasy drafting team, and rookie indicators where data is available.
+- **Player details:** projections and actuals, weekly history, fantasy news, separate position and overall dynasty rankings, and league-specific rostered / started rates where data is available.
+- **Load behavior:** render the core dashboard before slower stats and projection feeds finish, then update when the full refresh completes.
 
 ## Competitive comparison and deliberate scope
 
@@ -41,10 +42,12 @@ The **KTC Daily Snapshot** workflow generated its dated data branch on 2026-10-1
 
 ## Current automated QA
 
-The Playwright smoke workflow loads a real league, exercises all five main tabs, switches teams and checks identity consistency, verifies actual/projected scores are vertically stacked for both matchup teams, tests week navigation and reserve expansion, exercises every waiver mode and trade add/remove/copy/clear action, checks the next-year-only draft view, and refreshes data. Player details are tested with close button, Escape, and backdrop dismissal; standings, Max PF, and dynasty-outlook detail modals are also opened and closed. It audits duplicate IDs, accessible names on buttons and fields, contradictory bye-week labels, browser errors, and horizontal overflow at 320px, phone, tablet, and desktop widths.
+The Playwright smoke workflow loads a real league, waits for the explicit full-refresh status, exercises all five main tabs, switches teams and checks identity consistency, verifies actual/projected scores are vertically stacked for both matchup teams, tests week navigation and reserve expansion, exercises every waiver mode and trade add/remove/copy/clear action, checks next-year-only draft headings and research links, validates draft-recap metadata when picks exist, and refreshes data. Player details are tested with close button, Escape, and backdrop dismissal; standings, Max PF, and dynasty-outlook detail modals are also opened and closed. It audits duplicate IDs, accessible names on buttons and fields, contradictory bye-week labels, browser errors, and horizontal overflow at 320px, phone, tablet, and desktop widths.
 
-Latest verified UI smoke run: https://github.com/tschipper/sleeper-sdk/actions/runs/39252115991  
-Latest verified dashboard deployment: https://github.com/tschipper/sleeper-sdk/actions/runs/39252116008
+The October 20 audit also fixed two runtime blockers: position normalization was referenced outside its original local scope, and scoring metadata was read before initialization. The dashboard now renders the core roster shell before slower stats/projection requests finish.
+
+Latest verified UI smoke run: https://github.com/tschipper/sleeper-sdk/actions/runs/39357380569  
+Latest verified dashboard deployment: https://github.com/tschipper/sleeper-sdk/actions/runs/39357380658
 
 ## Public references used for the comparison
 
