@@ -575,17 +575,35 @@ async function load(){
   const scoringFallbackSafe=scoringKeys.every(key=>key==="rec"?[0,.5,1].includes(Number(leagueScoring[key])):Object.prototype.hasOwnProperty.call(defaultScoring,key)&&Number(leagueScoring[key])===defaultScoring[key]);
   state.scoringFallbackSafe=scoringFallbackSafe;const fallbackPoints=row=>row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
   const leaguePointsFromStats=row=>{
-   // Only calculate league-specific points when every configured scoring stat is present.
-   // Sleeper's stats feed may omit zero-valued or unsupported fields; a partial sum can
-   // silently produce a much lower score than the player's actual fantasy points.
+   // Start with Sleeper's published points for the closest standard reception
+   // format, then adjust only for differences in this league's scoring settings.
+   // This avoids rebuilding the whole score from an incomplete stat breakdown,
+   // which can omit zero or unsupported fields and undercount players.
+   const baseRaw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+   const base=Number(baseRaw);
+   if(baseRaw!==undefined&&baseRaw!==null&&Number.isFinite(base)){
+    let adjusted=base,hasAdjustmentStat=false;
+    for(const [key,multiplierValue] of Object.entries(leagueScoring)){
+     const multiplier=Number(multiplierValue);
+     if(!Number.isFinite(multiplier)||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
+     const standardMultiplier=key==="rec"?recPoints:(Object.prototype.hasOwnProperty.call(defaultScoring,key)?defaultScoring[key]:0);
+     const delta=multiplier-standardMultiplier;
+     if(!delta)continue;
+     const statRaw=row?.[key];
+     if(statRaw===undefined||statRaw===null)continue;
+     const stat=Number(statRaw);if(!Number.isFinite(stat))continue;
+     adjusted+=stat*delta;hasAdjustmentStat=true;
+    }
+    // A standard-format total is always usable. If the league differs, only
+    // apply adjustments for nonzero stat values Sleeper actually supplied.
+    return adjusted;
+   }
+   // Some stat endpoints provide components but no aggregate point total.
+   // Sum available league-scoring components, treating omitted zero stats as 0.
    let total=0,matched=0;
    for(const [key,multiplierValue] of Object.entries(leagueScoring)){
     const multiplier=Number(multiplierValue);
     if(!Number.isFinite(multiplier)||multiplier===0||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
-    // Sleeper omits stat keys that are zero for a player. Treat absent keys as
-    // zero, but only trust a custom-score calculation when at least one raw
-    // scoring stat is present; aggregate-only rows must use Sleeper's published
-    // scoring-format total instead of becoming a misleading zero.
     if(!Object.prototype.hasOwnProperty.call(row,key))continue;
     const value=Number(row[key]);if(!Number.isFinite(value))continue;
     total+=value*multiplier;matched++;
