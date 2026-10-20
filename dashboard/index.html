@@ -461,6 +461,7 @@ function renderTrades(content){
  const tradeViewSelect=$("#trade-view");if(tradeViewSelect){tradeViewSelect.value=viewMode();tradeViewSelect.addEventListener("change",e=>{state.tradeView=e.target.value;render()})}
  const tradeAggressivenessInput=$("#trade-aggressiveness");if(tradeAggressivenessInput)tradeAggressivenessInput.addEventListener("change",e=>{state.tradeAggressiveness=Number(e.target.value);render()});
 }
+function feedEntries(data){const payload=data&&typeof data==="object"?(data.players??data.projections??data.stats??data.data??data):data;return Array.isArray(payload)?payload.map((v,i)=>[String(v?.player_id??v?.playerId??v?.id??i),v]):Object.entries(payload||{})}
 function ppgRank(id,positionOnly=false){const p=state.players[String(id)]||{},position=normalizePos(p.position),value=Number(state.weeklyPPG[String(id)]);if(!Number.isFinite(value)||value<=0||!position)return null;const better=Object.entries(state.players).filter(([otherId,other])=>{if(String(otherId)===String(id))return false;if(positionOnly&&normalizePos(other?.position)!==position)return false;const otherPPG=Number(state.weeklyPPG[String(otherId)]);return Number.isFinite(otherPPG)&&otherPPG>0&&otherPPG>value});return better.length+1}function positionRank(id){return ppgRank(id,true)}function positionRankLabel(id){const rank=positionRank(id);return rank?" · PPG rank #"+rank:""}function jerseyNumberLabel(id){const number=(state.players[String(id)]||{}).number;return number!==undefined&&number!==null&&String(number).trim()!==""?" #"+esc(number):""}function pos(id){const p=state.players[id];return p?.position||"—"}
 function teamName(id){const p=state.players[id];return p?.team||"Free agent"}function playerStatusLabel(id){const p=state.players[String(id)]||{},status=String(p.injury_status||p.status||"").trim().toLowerCase();if(/\bquestionable\b/.test(status))return "Q";if(/\bdoubtful\b/.test(status))return "Doubt";if(/\bout\b/.test(status))return "Out";if(/\b(ir|injured reserve|reserve\/injured)\b/.test(status))return "IR";if(/\bpup\b/.test(status))return "PUP";if(/\bsuspend/.test(status))return "Susp";return ""}function playerStatusClass(id){const label=playerStatusLabel(id);return label==="Q"||label==="Doubt"?"injury-question":label==="Out"||label==="IR"||label==="PUP"?"injury-out":""}function playerMetaSuffix(id){const p=state.players[String(id)]||{},parts=[],exp=Number(p.years_exp);if(p.years_exp!==null&&p.years_exp!==undefined&&String(p.years_exp).trim()!==""&&Number.isFinite(exp)&&exp>=0)parts.push("Exp: "+exp);if(p.bye_week!==undefined&&p.bye_week!==null&&String(p.bye_week)!=="")parts.push("Bye: "+esc(p.bye_week));const status=playerStatusLabel(id);if(status)parts.push('<span class="player-status '+playerStatusClass(id)+'">('+status+')</span>');return parts.length?" | "+parts.join(" | "):""}function matchupPlayerName(id){const p=state.players[String(id)]||{},full=playerName(String(id)),first=p.first_name||full.split(/\s+/)[0]||"",last=p.last_name||full.split(/\s+/).slice(-1)[0]||"";return (first?first.charAt(0)+". ":"")+last}
 function normalizedNflTeam(team){const t=String(team||"").toUpperCase();return ({JAC:"JAX",JAX:"JAX",LA:"LAR",LAR:"LAR",OAK:"LV",LV:"LV",SD:"LAC",LAC:"LAC",STL:"LAR",WAS:"WSH",WSH:"WSH"}[t]||t)}function sameNflTeam(a,b){return normalizedNflTeam(a)===normalizedNflTeam(b)}
@@ -597,7 +598,7 @@ async function load(){
    for(let wi=0;wi<statWeeks.length;wi++){
     const stats=statWeeks[wi];if(!stats||typeof stats!=="object")continue;
     if(wi===0)summarize("Stats response",stats);
-    const entries=Array.isArray(stats)?stats.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(stats);
+    const entries=feedEntries(stats);
     for(const [key,s] of entries){
      const pid=String(s?.player_id??s?.playerId??s?.id??key);
      const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
@@ -617,7 +618,7 @@ async function load(){
   try{
    const url="https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular";
    const projections=await getJSON(url);if(!current())return;summarize("Projection response",projections);
-   const entries=Array.isArray(projections)?projections.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(projections||{});
+   const entries=feedEntries(projections);
    const scoring=league.scoring_settings||{};
    let projectionRows=0,missingProjectionPoints=0;
    for(const [key,p] of entries){
@@ -638,7 +639,7 @@ async function load(){
    const priorProjectionWeeks=await Promise.all(Array.from({length:Math.min(18,week+3)},(_,i)=>i+1).filter(projectionWeek=>projectionWeek!==week).map(async historicalWeek=>{
     try{
      const historical=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+historicalWeek+"?season_type=regular");
-     const historicalEntries=Array.isArray(historical)?historical.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(historical||{});
+     const historicalEntries=feedEntries(historical);
      const byPlayer={};
      for(const [key,item] of historicalEntries){
       const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;
