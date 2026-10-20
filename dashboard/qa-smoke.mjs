@@ -122,6 +122,12 @@ try {
     const control = page.locator(selector);
     if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
   }
+  const selectedTradeAssets = page.locator("[data-mt-remove]");
+  if (await selectedTradeAssets.count() >= 2) {
+    const tradeResult = (await page.locator(".pick-recommendation h3").first().innerText()).trim();
+    assert.ok(tradeResult.length > 0 && tradeResult !== "Add assets to both sides to compare",
+      "trade calculator should evaluate both selected sides");
+  }
   const copyTrade = page.locator("#mt-copy");
   if (await copyTrade.count()) {
     await copyTrade.click();
@@ -161,6 +167,25 @@ try {
   }
 
   await openTab("team", "Starters");
+  const tradedFuturePick = await page.evaluate(() => {
+    const current = Math.max(Number(state.league?.season) || 0, new Date().getFullYear());
+    const pick = (state.tradedPicks || []).find(p => Number(p.season) > current && Number(p.owner_id) !== Number(p.roster_id));
+    if (!pick) return null;
+    const ownerId = String(pick.owner_id), originalId = String(pick.roster_id);
+    const ownerName = [...document.querySelectorAll("#team option")].find(o => o.value === ownerId)?.textContent.trim();
+    const originalName = [...document.querySelectorAll("#team option")].find(o => o.value === originalId)?.textContent.trim();
+    if (!ownerName || !originalName) return null;
+    return { ownerId, originalId, ownerName, originalName, season: Number(pick.season), round: Number(pick.round) };
+  });
+  if (tradedFuturePick) {
+    await teamSelect.selectOption(tradedFuturePick.ownerId);
+    await page.waitForFunction(name => document.querySelector(".team-identity-copy strong")?.textContent.trim() === name, tradedFuturePick.ownerName, { timeout: 10000 });
+    const ownedPickTexts = await page.locator("#content .future-picks").allInnerTexts();
+    assert.ok(ownedPickTexts.some(value => value.includes("Round " + tradedFuturePick.round) && value.includes("via " + tradedFuturePick.originalName)),
+      "a traded future pick should appear under its current owner and identify its original team");
+    await teamSelect.selectOption(originalTeamId);
+    await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), originalTeamId, { timeout: 10000 });
+  }
   const playerButton = page.locator("#content .player-name-open").first();
   if (await playerButton.count()) {
     await playerButton.click();
