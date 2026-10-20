@@ -55,6 +55,14 @@ try {
   await page.locator(".team-identity-card").waitFor({ state: "visible", timeout: 30000 });
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
   await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
+  const liveDataCounts = await page.evaluate(() => ({
+    projections: Object.keys(state.weeklyProjection || {}).length,
+    seasonPpg: Object.keys(state.weeklyPPG || {}).length,
+    marketRanks: Object.values(state.marketPlayers || {}).filter(m => Number(m?.rank?.sf_dynasty ?? m?.rank?.sfDynasty ?? m?.rank?.sfDynastyRank ?? m?.rank?.sf_dynasty_rank ?? m?.sf_dynasty_rank ?? m?.sfDynastyRank) > 0).length
+  }));
+  assert.ok(liveDataCounts.projections > 0, "live Sleeper projection feed should produce usable player projections");
+  assert.ok(liveDataCounts.seasonPpg > 0, "live Sleeper stats feed should produce season PPG values for ranking");
+  assert.ok(liveDataCounts.marketRanks > 0, "dynasty market feed should produce rankings");
   assert.equal(await page.locator(".team-identity-card").count(), 1, "roster page should show exactly one consistent team identity card");
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
   const marketAvailabilityScenario = await page.evaluate(() => {
@@ -238,10 +246,10 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Fantasy PPG rank:", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
     const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
-    assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should label position and overall fantasy PPG ranks clearly");
+    assert.match(summaryLines[0] || "", /Fantasy PPG rank:.*Overall/, "player details should label position and overall fantasy PPG ranks clearly");
     assert.match(summaryLines[0] || "", /#1.*Overall #1/, "the displayed ranks should follow season PPG even when the dynasty market rank conflicts");
     assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
     assert.equal(summaryLines.length, 3, "player details should keep the summary to rank, Sleeper usage, and weekly PPG lines");
