@@ -134,7 +134,17 @@ try {
   assert.equal(futureHeading.trim(), expectedFutureYear + " Future Rookie Draft", "future draft should focus on the next available year only");
   assert.equal(await page.locator("#content h2").filter({ hasText: "Future Rookie Draft" }).count(), 1, "only one future rookie draft year should be displayed");
   const recap = page.locator('[data-draft-section="recaps"]');
-  if (await recap.count()) { await recap.click(); await noHorizontalOverflow("draft recaps"); }
+  if (await recap.count()) {
+    await recap.click();
+    await noHorizontalOverflow("draft recaps");
+    const historicalPick = page.locator(".draft-pick").first();
+    if (await historicalPick.count()) {
+      const details = await historicalPick.innerText();
+      assert.match(details, /NFL drafted by:/, "draft recap should show NFL draft team context");
+      assert.match(details, /College PPG:/, "draft recap should show college PPG or an explicit unavailable value");
+      assert.match(details, /NFL Avg PPG:/, "draft recap should show NFL PPG or an explicit unavailable value");
+    }
+  }
   const future = page.locator('[data-draft-section="future"]');
   if (await future.count()) { await future.click(); await noHorizontalOverflow("future draft"); }
 
