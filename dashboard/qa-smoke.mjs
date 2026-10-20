@@ -167,23 +167,33 @@ try {
   }
 
   await openTab("team", "Starters");
-  const tradedFuturePick = await page.evaluate(() => {
+  const pickOwnershipScenario = await page.evaluate(selectedId => {
     const current = Math.max(Number(state.league?.season) || 0, new Date().getFullYear());
-    const pick = (state.tradedPicks || []).find(p => Number(p.season) > current && Number(p.owner_id) !== Number(p.roster_id));
-    if (!pick) return null;
-    const ownerId = String(pick.owner_id), originalId = String(pick.roster_id);
+    const original = state.rosters.find(r => String(r.roster_id) === selectedId);
+    const owner = state.rosters.find(r => String(r.roster_id) !== selectedId);
+    if (!original || !owner) return null;
+    const ownerId = String(owner.roster_id), originalId = String(original.roster_id);
     const ownerName = [...document.querySelectorAll("#team option")].find(o => o.value === ownerId)?.textContent.trim();
     const originalName = [...document.querySelectorAll("#team option")].find(o => o.value === originalId)?.textContent.trim();
     if (!ownerName || !originalName) return null;
-    return { ownerId, originalId, ownerName, originalName, season: Number(pick.season), round: Number(pick.round) };
-  });
-  if (tradedFuturePick) {
-    await teamSelect.selectOption(tradedFuturePick.ownerId);
-    await page.waitForFunction(name => document.querySelector(".team-identity-copy strong")?.textContent.trim() === name, tradedFuturePick.ownerName, { timeout: 10000 });
+    const savedTradedPicks = state.tradedPicks;
+    const season = current + 1, round = 1;
+    state.tradedPicks = [...(savedTradedPicks || []), { season: String(season), round, roster_id: Number(original.roster_id), owner_id: Number(owner.roster_id), previous_owner_id: Number(original.roster_id) }];
+    render();
+    return { ownerId, originalId, ownerName, originalName, season, round, savedTradedPicks };
+  }, originalTeamId);
+  if (pickOwnershipScenario) {
+    await teamSelect.selectOption(pickOwnershipScenario.ownerId);
+    await page.waitForFunction(({ id, name }) => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong")?.textContent.trim() === name, { id: pickOwnershipScenario.ownerId, name: pickOwnershipScenario.ownerName }, { timeout: 10000 });
     const ownedPickTexts = await page.locator("#content .future-picks").allInnerTexts();
-    assert.ok(ownedPickTexts.some(value => value.includes("Round " + tradedFuturePick.round) && value.includes("via " + tradedFuturePick.originalName)),
+    assert.ok(ownedPickTexts.some(value => value.includes("Round " + pickOwnershipScenario.round) && value.includes("via " + pickOwnershipScenario.originalName)),
       "a traded future pick should appear under its current owner and identify its original team");
-    await teamSelect.selectOption(originalTeamId);
+    await teamSelect.selectOption(pickOwnershipScenario.originalId);
+    await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), pickOwnershipScenario.originalId, { timeout: 10000 });
+    const originalPickTexts = await page.locator("#content .future-picks").allInnerTexts();
+    assert.ok(!originalPickTexts.some(value => value.includes("via " + pickOwnershipScenario.originalName)),
+      "the original team should not retain a traded-away pick");
+    await page.evaluate(saved => { state.tradedPicks = saved; render(); }, pickOwnershipScenario.savedTradedPicks);
     await page.waitForFunction(id => document.querySelector("#team")?.value === id && document.querySelector(".team-identity-copy strong"), originalTeamId, { timeout: 10000 });
   }
   const playerButton = page.locator("#content .player-name-open").first();
@@ -192,6 +202,9 @@ try {
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
     await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("Sleeper usage:", { exact: true }).waitFor({ state: "visible" });
+    const rankSummary = await page.locator(".player-summary-line").first().innerText();
+    assert.match(rankSummary, /Dynasty rank:/, "player details should label the position-based dynasty rank");
+    assert.match(rankSummary, /Overall/, "player details should distinguish overall dynasty rank from position rank");
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
     await playerButton.click();
