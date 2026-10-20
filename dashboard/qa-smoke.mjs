@@ -199,6 +199,12 @@ try {
   await auditPage("desktop final state");
   assert.deepEqual(pageErrors, [], "browser errors detected: " + pageErrors.join(" | "));
   console.log("PASS: app load, five tabs at mobile and desktop widths, matchup score stacking/week navigation/bench expansion, waiver filters/search, trade view, draft tabs, ranking modal/Escape, refresh, and overflow checks.");
+} catch (error) {
+  console.error("SMOKE FAILURE:", error?.message || error);
+  console.error("STATUS:", await page.locator("#status").innerText().catch(() => "(unavailable)"));
+  console.error("CONTENT:", (await page.locator("#content").innerText().catch(() => "(unavailable)")).slice(0, 1000));
+  console.error("BROWSER ERRORS:", pageErrors.join(" | ") || "(none captured)");
+  throw error;
 } finally {
   await browser.close();
 }
