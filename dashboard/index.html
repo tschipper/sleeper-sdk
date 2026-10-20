@@ -568,10 +568,10 @@ async function load(){
   // standard baseline (with reception scoring allowed to be 0, 0.5, or 1).
   // Unknown/custom nonzero rules disable fallback rather than mis-scoring players.
   const defaultScoring={pass_yd:.04,pass_td:4,pass_int:-1,pass_2pt:2,rush_yd:.1,rush_td:6,rush_2pt:2,rec:1,rec_yd:.1,rec_td:6,rec_2pt:2,fum_lost:-2,fum_rec:2,fum_rec_td:6,def_td:6,sack:1,int:2,safe:2,blk_kick:2,fgm_0_19:3,fgm_20_29:3,fgm_30_39:3,fgm_40_49:4,fgm_50p:5,xpm:1,pts_allow_0:10,pts_allow_1_6:7,pts_allow_7_13:4,pts_allow_14_20:1,pts_allow_21_27:0,pts_allow_28_34:-1,pts_allow_35p:-4};
+  const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
   const scoringKeys=Object.keys(leagueScoring).filter(key=>{const value=Number(leagueScoring[key]);return Number.isFinite(value)&&value!==0&&!scoringMetaKeys.has(key)&&!key.startsWith("adp_")&&!key.startsWith("pos_rank_")});
   const scoringFallbackSafe=scoringKeys.every(key=>key==="rec"?[0,.5,1].includes(Number(leagueScoring[key])):Object.prototype.hasOwnProperty.call(defaultScoring,key)&&Number(leagueScoring[key])===defaultScoring[key]);
   const fallbackPoints=row=>scoringFallbackSafe?(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std):null;
-  const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
   const leaguePointsFromStats=row=>{
    // Only calculate league-specific points when every configured scoring stat is present.
    // Sleeper's stats feed may omit zero-valued or unsupported fields; a partial sum can
