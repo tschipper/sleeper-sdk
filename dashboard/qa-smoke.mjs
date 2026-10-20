@@ -49,6 +49,7 @@ try {
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
   await page.locator(".team-identity-card").waitFor({ state: "visible", timeout: 30000 });
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
+  await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
   assert.equal(await page.locator(".team-identity-card").count(), 1, "roster page should show exactly one consistent team identity card");
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
   const accessibilityAudit = await page.evaluate(() => ({
