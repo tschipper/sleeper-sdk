@@ -578,17 +578,21 @@ async function load(){
    // Only calculate league-specific points when every configured scoring stat is present.
    // Sleeper's stats feed may omit zero-valued or unsupported fields; a partial sum can
    // silently produce a much lower score than the player's actual fantasy points.
-   let total=0,matched=0,complete=true;
+   let total=0,matched=0;
    for(const [key,multiplierValue] of Object.entries(leagueScoring)){
     const multiplier=Number(multiplierValue);
     if(!Number.isFinite(multiplier)||multiplier===0||scoringMetaKeys.has(key)||key.startsWith("adp_")||key.startsWith("pos_rank_"))continue;
-    if(!Object.prototype.hasOwnProperty.call(row,key)){complete=false;continue}
-    const value=Number(row[key]);if(!Number.isFinite(value)){complete=false;continue}
+    // Sleeper omits stat keys that are zero for a player. Treat absent keys as
+    // zero, but only trust a custom-score calculation when at least one raw
+    // scoring stat is present; aggregate-only rows must use Sleeper's published
+    // scoring-format total instead of becoming a misleading zero.
+    if(!Object.prototype.hasOwnProperty.call(row,key))continue;
+    const value=Number(row[key]);if(!Number.isFinite(value))continue;
     total+=value*multiplier;matched++;
    }
-   return complete&&matched?total:null;
+   return matched?total:null;
   };
-  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; base-score fallback "+(scoringFallbackSafe?"allowed":"disabled because custom scoring rules are present"));
+  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; custom stat scoring attempted; published Sleeper totals remain available as fallback when a row has no usable stat breakdown");
   state.weeklyPPG={};state.weeklyProjection={};
   const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
