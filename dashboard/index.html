@@ -640,7 +640,7 @@ async function load(){
  }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
 }
 $("#league").addEventListener("change",()=>{state.selectedRoster="";state.manualTrade=null;state.expandedMatchupTeams={};state.matchupWeek=0;state.matchupView="mine";state.cutSuggestionFor="";load()});
-$("#team").addEventListener("change",e=>{state.selectedRoster=e.target.value;render()});
+$("#team").addEventListener("change",e=>{state.selectedRoster=e.target.value;state.manualTrade=null;render()});
 $("#refresh").addEventListener("click",load);
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));state.tab=b.dataset.tab;render()}));
  $("#content").addEventListener("click",e=>{const b=e.target.closest("[data-expand]");if(b){const k=b.dataset.expand;state.expandedMatchupTeams[k]=!state.expandedMatchupTeams[k];render()}});$("#content").addEventListener("change",e=>{if(e.target?.id==="matchup-view"){state.matchupView=e.target.value;render()}});
