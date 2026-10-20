@@ -160,6 +160,7 @@ function captureOriginalProjections(leagueId,season,week){const all=readOriginal
 function status(s){$("#status").textContent=s}
 function diag(s){console.info("[Sleeper GM]",s)}
 async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(url+" → HTTP "+r.status);return r.json()}
+function normalizePos(pos){const value=String(pos||"").toUpperCase();return ["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(value)?"IDP":value}
 function isRookiePlayer(id){const p=state.players[String(id)]||{};const hasExp=p.years_exp!==null&&p.years_exp!==undefined&&String(p.years_exp).trim()!=="";const exp=Number(p.years_exp);const hasYear=p.rookie_year!==null&&p.rookie_year!==undefined&&String(p.rookie_year).trim()!=="";const year=Number(p.rookie_year);const season=Number(state.league?.season||new Date().getFullYear());return (hasExp&&Number.isFinite(exp)&&exp===0)||(hasYear&&Number.isFinite(year)&&year===season)}function rookieIcon(id){return isRookiePlayer(id)?'<span class="rookie-icon" title="Rookie" aria-label="Rookie">R</span>':""}function playerName(id){const p=state.players[id];if(!p)return "Player "+id;return p.full_name||[p.first_name,p.last_name].filter(Boolean).join(" ")||("Player "+id)}
 function userFor(roster){return state.users.find(u=>u.user_id===roster.owner_id)||{}}
 
