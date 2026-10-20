@@ -553,6 +553,13 @@ async function load(){
   const season=Number(nflState.season)||new Date().getFullYear();try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);if(!current())return;const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){if(!current())return;state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}if(!current())return;
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
   const leagueScoring=league.scoring_settings||{};
+  // Permit a base-format fallback only when known scoring rules match the
+  // standard baseline (with reception scoring allowed to be 0, 0.5, or 1).
+  // Unknown/custom nonzero rules disable fallback rather than mis-scoring players.
+  const defaultScoring={pass_yd:.04,pass_td:4,pass_int:-1,pass_2pt:2,rush_yd:.1,rush_td:6,rush_2pt:2,rec:1,rec_yd:.1,rec_td:6,rec_2pt:2,fum_lost:-2,fum_rec:2,fum_rec_td:6,def_td:6,sack:1,int:2,safe:2,blk_kick:2,fgm_0_19:3,fgm_20_29:3,fgm_30_39:3,fgm_40_49:4,fgm_50p:5,xpm:1,pts_allow_0:10,pts_allow_1_6:7,pts_allow_7_13:4,pts_allow_14_20:1,pts_allow_21_27:0,pts_allow_28_34:-1,pts_allow_35p:-4};
+  const scoringKeys=Object.keys(leagueScoring).filter(key=>{const value=Number(leagueScoring[key]);return Number.isFinite(value)&&value!==0&&!scoringMetaKeys.has(key)&&!key.startsWith("adp_")&&!key.startsWith("pos_rank_")});
+  const scoringFallbackSafe=scoringKeys.every(key=>key==="rec"?[0,.5,1].includes(Number(leagueScoring[key])):Object.prototype.hasOwnProperty.call(defaultScoring,key)&&Number(leagueScoring[key])===defaultScoring[key]);
+  const fallbackPoints=row=>scoringFallbackSafe?(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std):null;
   const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
   const leaguePointsFromStats=row=>{
    // Only calculate league-specific points when every configured scoring stat is present.
@@ -568,7 +575,7 @@ async function load(){
    }
    return complete&&matched?total:null;
   };
-  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; using "+scoreKey+" fallback plus league scoring settings");
+  diag("Season/week from Sleeper: "+season+" / "+week+" (display_week="+nflState.display_week+", week="+nflState.week+"); league reception scoring="+recPoints+"; base-score fallback "+(scoringFallbackSafe?"allowed":"disabled because custom scoring rules are present"));
   state.weeklyPPG={};state.weeklyProjection={};
   const summarize=(label,data)=>{const keys=data&&typeof data==="object"?Object.keys(data):[];const first=Array.isArray(data)?data[0]:(keys.length?data[keys[0]]:null);diag(label+": type="+(Array.isArray(data)?"array":typeof data)+", rows="+(Array.isArray(data)?data.length:keys.length)+", first keys="+(first&&typeof first==="object"?Object.keys(first).join(", "):String(first)));};
   try{
@@ -584,7 +591,7 @@ async function load(){
      const row=s?.stats&&typeof s.stats==="object"?s.stats:s;
      if(pid.startsWith("TEAM_"))continue;
      const customPts=leaguePointsFromStats(row);
-     const raw=customPts!==null?customPts:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std);
+     const raw=customPts!==null?customPts:fallbackPoints(row);
      if(raw===undefined||raw===null)continue;
      const pts=Number(raw);if(!Number.isFinite(pts))continue;
      (state.weeklyHistory[pid]||(state.weeklyHistory[pid]=[])).push({week:wi+1,points:pts,stats:row});
@@ -593,7 +600,7 @@ async function load(){
    }
    for(const [pid,total] of Object.entries(totals))if(counts[pid])state.weeklyPPG[pid]=total/counts[pid];
    diag("PPG player rows parsed="+Object.keys(state.weeklyPPG).length);
-   if(Number(season)>2025){const oldTotals={},oldCounts={},oldWeeks=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.com/stats/nfl/2025/"+(i+1)+"?season_type=regular").catch(()=>null)));if(!current())return;for(let wi=0;wi<oldWeeks.length;wi++){const data=oldWeeks[wi];if(!data||typeof data!=="object")continue;const rows=Array.isArray(data)?data.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(data);for(const [key,item] of rows){const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;if(pid.startsWith("TEAM_"))continue;const custom=leaguePointsFromStats(row),raw=custom!==null?custom:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std),n=Number(raw);if(raw===undefined||raw===null||!Number.isFinite(n))continue;oldTotals[pid]=(oldTotals[pid]||0)+n;oldCounts[pid]=(oldCounts[pid]||0)+1}}for(const [pid,total] of Object.entries(oldTotals))if(oldCounts[pid])state.previousYearPPG[pid]=total/oldCounts[pid];diag("2025 PPG rows parsed="+Object.keys(state.previousYearPPG).length)}
+   if(Number(season)>2025){const oldTotals={},oldCounts={},oldWeeks=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.com/stats/nfl/2025/"+(i+1)+"?season_type=regular").catch(()=>null)));if(!current())return;for(let wi=0;wi<oldWeeks.length;wi++){const data=oldWeeks[wi];if(!data||typeof data!=="object")continue;const rows=Array.isArray(data)?data.map((v,i)=>[String(v.player_id??v.playerId??v.id??i),v]):Object.entries(data);for(const [key,item] of rows){const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;if(pid.startsWith("TEAM_"))continue;const custom=leaguePointsFromStats(row),raw=custom!==null?custom:fallbackPoints(row),n=Number(raw);if(raw===undefined||raw===null||!Number.isFinite(n))continue;oldTotals[pid]=(oldTotals[pid]||0)+n;oldCounts[pid]=(oldCounts[pid]||0)+1}}for(const [pid,total] of Object.entries(oldTotals))if(oldCounts[pid])state.previousYearPPG[pid]=total/oldCounts[pid];diag("2025 PPG rows parsed="+Object.keys(state.previousYearPPG).length)}
   }catch(err){diag("Stats parsing ERROR: "+err.message)}
   try{
    const url="https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular";
@@ -607,7 +614,7 @@ async function load(){
     // Prefer a complete league-specific calculation when Sleeper supplies every
     // configured scoring stat; otherwise use Sleeper's published standard-format total.
     const customPoints=leaguePointsFromStats(row);
-    const raw=customPoints!==null?customPoints:(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_points);
+    const raw=customPoints!==null?customPoints:(fallbackPoints(row)??(scoringFallbackSafe?(row?.proj_pts??row?.projected_points):null));
     if(raw===undefined||raw===null){missingProjectionPoints++;continue}
     const points=Number(raw);if(!Number.isFinite(points))continue;
     state.weeklyProjection[pid]=points;projectionRows++;
