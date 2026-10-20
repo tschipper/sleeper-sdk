@@ -190,8 +190,8 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Rostered on Sleeper", { exact: true }).waitFor({ state: "visible" });
-    await page.getByText("Started on Sleeper", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Sleeper usage:", { exact: true }).waitFor({ state: "visible" });
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
     await playerButton.click();
