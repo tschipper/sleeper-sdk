@@ -149,7 +149,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 </main>
 <script>
 const $=s=>document.querySelector(s);
-const state={league:null,rosters:[],users:[],players:{},marketPlayers:{},usageTrends:{},weeklyPPG:{},previousYearPPG:{},weeklyProjection:{},weeklyProjectionHistory:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],trendingAdds:{},trendingDrops:{},selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,matchupView:"mine",nflWeek:1,waiverSort:"recommended",playerResearch:{},marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3};
+const state={loadRequest:0,league:null,rosters:[],users:[],players:{},marketPlayers:{},usageTrends:{},weeklyPPG:{},previousYearPPG:{},weeklyProjection:{},weeklyProjectionHistory:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],trendingAdds:{},trendingDrops:{},selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,matchupView:"mine",nflWeek:1,waiverSort:"recommended",playerResearch:{},marketAsOf:"",marketError:"",selectedRoster:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3};
 const leagueNames={"1313702361549529088":"Loading league…","1313937831093080064":"Loading league…"};
 const ORIGINAL_PROJECTION_KEY="sleeper_gm_original_projections_v1";
 function readOriginalProjections(){try{return JSON.parse(localStorage.getItem(ORIGINAL_PROJECTION_KEY)||"{}")}catch(e){return {}}}
@@ -505,12 +505,13 @@ const legacyInfoObserver=new MutationObserver(()=>replaceLegacyPlayerInfoIcons(d
 legacyInfoObserver.observe(document.querySelector("#content"),{childList:true,subtree:true});
 replaceLegacyPlayerInfoIcons(document.querySelector("#content"));
 async function load(){
+ const request=++state.loadRequest,current=()=>request===state.loadRequest;
  const id=$("#league").value;state.tab=document.querySelector("nav button.active")?.dataset.tab||"team";
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
-  const league=await getJSON("https://api.sleeper.app/v1/league/"+id);
+  const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(!current())return;
   await Promise.all(Object.keys(leagueNames).map(async leagueId=>{try{const data=leagueId===id?league:await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not load name for league "+leagueId+": "+err.message)}}));
-  const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);
+  const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);if(!current())return;
   state.league=league;state.rosters=rosters;state.users=users;
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];
   try{state.drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");await Promise.all(state.drafts.map(async d=>{try{state.draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){state.draftPicks[d.draft_id]=[]}}))}catch(e){diag("Draft history unavailable: "+e.message)}
@@ -520,7 +521,7 @@ async function load(){
   if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
   $("#team").value=state.selectedRoster;
   status("League loaded. Fetching player names and dynasty values…");
-  if(!Object.keys(state.players).length){state.players=await getJSON("https://api.sleeper.app/v1/players/nfl")}
+  if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
   try{const [adds,drops]=await Promise.all([getJSON("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100"),getJSON("https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=100")]);state.trendingAdds=Object.fromEntries((adds||[]).map(x=>[String(x.player_id),Number(x.count)||0]));state.trendingDrops=Object.fromEntries((drops||[]).map(x=>[String(x.player_id),Number(x.count)||0]))}catch(err){state.trendingAdds={};state.trendingDrops={};diag("Sleeper trending data unavailable: "+err.message)}
   try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}
   state.schedule={};
@@ -638,9 +639,9 @@ async function load(){
   }catch(err){diag("Projection ERROR: "+err.message)}
   diag("Player dictionary IDs="+Object.keys(state.players).length+"; PPG IDs="+Object.keys(state.weeklyPPG).length+"; projection IDs="+Object.keys(state.weeklyProjection).length);
   try{const usageData=await getJSON("./data/usage-trends.json");state.usageTrends=Number(usageData?.season)===Number(league.season)?(usageData.players||{}):{};diag("Usage trend rows loaded="+Object.keys(state.usageTrends).length)}catch(e){state.usageTrends={};diag("Usage trend data unavailable: "+e.message)}
-  status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
+  if(!current())return;status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
   render();
- }catch(e){status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
+ }catch(e){if(!current())return;status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
 }
 $("#league").addEventListener("change",()=>{state.selectedRoster="";state.manualTrade=null;state.expandedMatchupTeams={};state.matchupWeek=0;state.matchupView="mine";state.cutSuggestionFor="";load()});
 $("#team").addEventListener("change",e=>{state.selectedRoster=e.target.value;state.manualTrade=null;render()});
