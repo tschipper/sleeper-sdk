@@ -536,24 +536,27 @@ async function load(){
   render();
   try{const [adds,drops]=await Promise.all([getJSON("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100"),getJSON("https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=100")]);if(!current())return;state.trendingAdds=Object.fromEntries((adds||[]).map(x=>[String(x.player_id),Number(x.count)||0]));state.trendingDrops=Object.fromEntries((drops||[]).map(x=>[String(x.player_id),Number(x.count)||0]))}catch(err){if(!current())return;state.trendingAdds={};state.trendingDrops={};diag("Sleeper trending data unavailable: "+err.message)}if(!current())return;
   try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");if(!current())return;state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){if(!current())return;state.marketPlayers={};state.marketAsOf="";state.marketError=err.message}if(!current())return;
-  const scheduleMap={};
-  try{
-   const nflStateForSchedule=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));if(!current())return;
-   const scheduleSeason=Number(nflStateForSchedule.season)||new Date().getFullYear();
-   const scheduleWeek=Number(nflStateForSchedule.display_week)||Number(nflStateForSchedule.week)||1;
-   const board=await getJSON("https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+scheduleWeek+"&seasontype=2&season="+scheduleSeason);
-   for(const event of board.events||[]){
-    const comp=event.competitions&&event.competitions[0],teams=comp?.competitors||[];
-    const home=teams.find(t=>t.homeAway==="home")?.team?.abbreviation,away=teams.find(t=>t.homeAway==="away")?.team?.abbreviation;
-    if(!home||!away)continue;
-    for(const team of [home,away])scheduleMap[team]={home,away,date:event.date,state:event.status?.type?.state||event.status?.type?.name||""};
-   }
-  }catch(err){if(!current())return;diag("Schedule unavailable: "+err.message)}if(!current())return;state.schedule=scheduleMap;
-  const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));if(!current())return;
-   // Prefer display_week because it represents the week currently shown in Sleeper's UI.
-   const week=Number(nflState.display_week)||Number(nflState.week)||1;
+   const scheduleMap={};
+
+   const season=Number(nflState.season)||new Date().getFullYear();
+   const reportedWeek=Number(nflState.display_week)||Number(nflState.week)||1;
+   let week=reportedWeek,board={events:[]};
+   try{
+    board=await getJSON("https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+reportedWeek+"&seasontype=2&season="+season);
+    const events=Array.isArray(board.events)?board.events:[];
+    const priorWeekComplete=events.length>0&&events.every(event=>event.status?.type?.state==="post"||event.status?.type?.completed===true);
+    // Sleeper can keep display_week on the just-finished week into Tuesday.
+    // Once every game is final, advance the dashboard to the upcoming week.
+    if(new Date().getDay()===2&&priorWeekComplete)week=Math.min(18,reportedWeek+1);
+    if(week!==reportedWeek)board=await getJSON("https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week="+week+"&seasontype=2&season="+season);
+    for(const event of board.events||[]){
+     const comp=event.competitions&&event.competitions[0],teams=comp?.competitors||[];
+     const home=teams.find(t=>t.homeAway==="home")?.team?.abbreviation,away=teams.find(t=>t.homeAway==="away")?.team?.abbreviation;
+     if(!home||!away)continue;
+     for(const team of [home,away])scheduleMap[team]={home,away,date:event.date,state:event.status?.type?.state||event.status?.type?.name||""};
+    }
+   }catch(err){if(!current())return;diag("Schedule unavailable: "+err.message)}if(!current())return;state.schedule=scheduleMap;
    const previousNflWeek=Number(state.nflWeek)||0,previousMatchupWeek=Number(state.matchupWeek)||0;state.nflWeek=week;if(!previousMatchupWeek||previousMatchupWeek===previousNflWeek)state.matchupWeek=week;
-   try{state.matchups=await getJSON("https://api.sleeper.app/v1/league/"+id+"/matchups/"+state.matchupWeek)}catch(e){state.matchups=[]}if(!current())return;
    state.weeklyActual={};
    // Fetch actual points for the current NFL display week, independently of the matchup-page week selector.
    try{
@@ -567,7 +570,7 @@ async function load(){
   // Stats and projection feeds can be slow; do not leave the entire dashboard blank while they load.
   status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · finishing stats and projections…");
   render();
-  const season=Number(nflState.season)||new Date().getFullYear();try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);if(!current())return;const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){if(!current())return;state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}if(!current())return;
+  try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);if(!current())return;const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){if(!current())return;state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}if(!current())return;
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
   const leagueScoring=league.scoring_settings||{};
   // Permit a base-format fallback only when known scoring rules match the
