@@ -664,7 +664,7 @@ async function load(){
      const historicalEntries=feedEntries(historical);
      const byPlayer={};
      for(const [key,item] of historicalEntries){
-      const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?item.stats:item;
+      const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?{...item,...item.stats}:item;
       const customPoints=leaguePointsFromStats(row);
       const raw=customPoints!==null?customPoints:fallbackPoints(row);
       const value=Number(raw);
