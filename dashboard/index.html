@@ -164,6 +164,7 @@ function isRookiePlayer(id){const p=state.players[String(id)]||{};const hasExp=p
 function userFor(roster){return state.users.find(u=>u.user_id===roster.owner_id)||{}}
 
 function maxPF(roster){const s=roster.settings||{};return (Number(s.ppts)||0)+(Number(s.ppts_decimal)||0)/100}
+function normalizePos(p){const value=String(p||"").toUpperCase();return ["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(value)?"IDP":value}
 function ordinal(n){return n%100>=11&&n%100<=13?n+"th":n+({1:"st",2:"nd",3:"rd"}[n%10]||"th")}
 function rosterName(r){const u=userFor(r),label=String(u.metadata?.team_name||u.display_name||u.username||"").trim();return label||("Roster "+r.roster_id)}
 function rosterAvatar(roster){const u=userFor(roster),avatar=u.metadata?.avatar||u.avatar;if(!avatar)return '<span class="team-avatar team-avatar-fallback" aria-hidden="true">' + esc((rosterName(roster)||"?").slice(0,1).toUpperCase()) + '</span>';const src=String(avatar).startsWith("http")?avatar:"https://sleepercdn.com/avatars/"+encodeURIComponent(avatar);return '<img class="team-avatar" src="' + esc(src) + '" alt="" loading="lazy">'}
