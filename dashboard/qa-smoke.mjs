@@ -151,8 +151,8 @@ try {
   const marketDataNote = page.locator(".market-data-note");
   assert.equal(await marketDataNote.count(), 1, "trade calculator should disclose market-data source/freshness or unavailability");
   assert.match(await marketDataNote.innerText(), /Market source: StatsGuyFantasy|Market data unavailable/, "trade market note should explain its source or unavailable state");
-  assert.equal(await page.getByText(/standard-format PPG\/projections as a clearly labeled baseline/).count(), 1,
-    "trade scouting should explain the standard-format baseline when custom scoring cannot be calculated");
+  assert.equal(await page.getByText(/adjusts Sleeper’s published points using your league’s scoring rules/).count(), 1,
+    "trade scouting should explain league scoring adjustments and standard-format fallback");
   for (const selector of ["#mt-add-give", "#mt-add-get", "#trade-view"]) {
     const control = page.locator(selector);
     if (await control.count()) await control.selectOption({ index: Math.min(1, (await control.locator("option").count()) - 1) }).catch(() => {});
