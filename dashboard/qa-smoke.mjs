@@ -25,11 +25,13 @@ async function auditPage(label) {
   const audit = await page.evaluate(() => ({
     duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
     unnamedButtons: [...document.querySelectorAll("button")].filter(el => el.getClientRects().length && !(el.innerText || "").trim() && !el.getAttribute("aria-label") && !el.getAttribute("title") && !el.getAttribute("aria-labelledby")).map(el => el.outerHTML.slice(0, 140)),
-    unlabeledFields: [...document.querySelectorAll("input,select,textarea")].filter(el => el.getClientRects().length && !el.disabled && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby") && !el.getAttribute("title") && !el.placeholder && !(el.labels && [...el.labels].length) && !el.closest("label")).map(el => el.outerHTML.slice(0, 140))
+    unlabeledFields: [...document.querySelectorAll("input,select,textarea")].filter(el => el.getClientRects().length && !el.disabled && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby") && !el.getAttribute("title") && !el.placeholder && !(el.labels && [...el.labels].length) && !el.closest("label")).map(el => el.outerHTML.slice(0, 140)),
+    missingRookieMarkers: [...document.querySelectorAll(".player-name-open[data-player]")].filter(el => isRookiePlayer(el.dataset.player) && !el.querySelector(".rookie-icon")).map(el => (el.innerText || "").trim()).slice(0, 20)
   }));
   assert.deepEqual(audit.duplicateIds, [], label + ": duplicate HTML IDs found");
   assert.deepEqual(audit.unnamedButtons, [], label + ": visible buttons need accessible names");
   assert.deepEqual(audit.unlabeledFields, [], label + ": visible form controls need accessible labels");
+  assert.deepEqual(audit.missingRookieMarkers, [], label + ": rookie players in name buttons need the R marker");
 }
 async function openTab(tab, expectedText) {
   await page.locator('nav [data-tab="' + tab + '"]').click();
