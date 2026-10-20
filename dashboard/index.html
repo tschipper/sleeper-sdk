@@ -188,8 +188,8 @@ function render(){
   (roster?.players||[]).forEach(id=>{const p=state.players[id],pos=normalizePos(p?.position);if(p&&counts[pos]!==undefined){counts[pos]++;const status=String(p.injury_status||"").toLowerCase();if(/\b(out|ir|injured reserve|reserve\/injured|pup|nfi|non-football injury|suspended)\b/.test(status))injuredCounts[pos]++}});
   (roster?.starters||[]).forEach(id=>{const p=state.players[id],pos=normalizePos(p?.position);if(p&&starterCounts[pos]!==undefined)starterCounts[pos]++});
   const slots=(state.league?.roster_positions||[]).map(s=>String(s).toUpperCase());
-  const flexSlots=slots.filter(s=>["FLEX","REC_FLEX","WRRB_FLEX","SUPER_FLEX","SUPERFLEX"].includes(s)).length;
-  const hasSuperflex=slots.some(s=>s==="SUPER_FLEX"||s==="SUPERFLEX");
+  const flexSlots=slots.filter(s=>["FLEX","REC_FLEX","WRRB_FLEX"].includes(s)).length;const superflexSlots=slots.filter(s=>s==="SUPER_FLEX"||s==="SUPERFLEX").length;
+  const hasSuperflex=superflexSlots>0;
   const baseStarts={QB:slots.filter(s=>s==="QB").length,RB:slots.filter(s=>s==="RB").length,WR:slots.filter(s=>s==="WR").length,TE:slots.filter(s=>s==="TE").length};
   const idpSlots=slots.filter(s=>["IDP_FLEX","FLEX_IDP","DL","LB","DB","DE","DT","CB","S","EDGE","NT"].includes(s)).length;
   const targets={QB:Math.max(3,baseStarts.QB+(hasSuperflex?2:1)),RB:Math.max(5,baseStarts.RB+flexSlots+2),WR:Math.max(5,baseStarts.WR+flexSlots+2),TE:Math.max(2,baseStarts.TE+1),IDP:Math.max(4,idpSlots+2)};
