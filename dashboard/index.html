@@ -551,6 +551,10 @@ async function load(){
      for(const [pid,value] of Object.entries(playerPoints)){const points=Number(value);if(Number.isFinite(points))state.weeklyActual[String(pid)]=points;}
     }
    }catch(err){diag("Actual points unavailable: "+err.message)}if(!current())return;
+  // Render the usable league shell as soon as roster, players, schedule, and matchup data are ready.
+  // Stats and projection feeds can be slow; do not leave the entire dashboard blank while they load.
+  status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · finishing stats and projections…");
+  render();
   const season=Number(nflState.season)||new Date().getFullYear();try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);if(!current())return;const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){if(!current())return;state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}if(!current())return;
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
   const leagueScoring=league.scoring_settings||{};
