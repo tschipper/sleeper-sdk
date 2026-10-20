@@ -58,17 +58,24 @@ try {
   assert.equal(await page.locator(".team-identity-card").count(), 1, "roster page should show exactly one consistent team identity card");
   assert.ok(await page.locator(".team-avatar").count() === 1, "roster page should show team avatar or fallback");
   const marketAvailabilityScenario = await page.evaluate(() => {
-    const hasValues = hasMarketValues(), savedAsOf = state.marketAsOf;
+    const roster = state.rosters.find(r => String(r.roster_id) === String(state.selectedRoster));
+    const hasRosterValues = (roster?.players || []).some(id => {
+      const m = state.marketPlayers[String(id)] || {};
+      const raw = m.value?.sf_dynasty ?? m.value?.sfDynasty ?? m.sf_dynasty ?? m.sfDynasty ?? (typeof m.value === "number" || typeof m.value === "string" ? m.value : null);
+      const value = Number(raw);
+      return Number.isFinite(value) && value > 0;
+    });
+    const savedAsOf = state.marketAsOf;
     state.marketAsOf = "";
     render();
     const futureOutlook = document.querySelector('[data-ranking="dynasty"] strong')?.textContent.trim();
     state.marketAsOf = savedAsOf;
     render();
-    return { hasValues, futureOutlook };
+    return { hasRosterValues, futureOutlook };
   });
-  if (marketAvailabilityScenario.hasValues) {
+  if (marketAvailabilityScenario.hasRosterValues) {
     assert.notEqual(marketAvailabilityScenario.futureOutlook, "Unavailable",
-      "missing market update-date metadata must not hide otherwise available dynasty values");
+      "missing market update-date metadata must not hide a roster outlook when usable team values exist");
   }
   const accessibilityAudit = await page.evaluate(() => ({
     duplicateIds: [...document.querySelectorAll("[id]")].map(el => el.id).filter((id, i, all) => all.indexOf(id) !== i),
