@@ -221,10 +221,11 @@ try {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
     await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
-    await page.getByText("Sleeper usage:", { exact: true }).waitFor({ state: "visible" });
-    const rankSummary = await page.locator(".player-summary-line").first().innerText();
-    assert.match(rankSummary, /Dynasty rank:/, "player details should label the position-based dynasty rank");
-    assert.match(rankSummary, /Overall/, "player details should distinguish overall dynasty rank from position rank");
+    await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
+    const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
+    assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
+    assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
+    assert.equal(await page.locator(".player-summary-note, .player-summary-details").count(), 0, "player details should omit extra ranking/projection explanations");
     await page.locator(".player-modal-close").click();
     await page.locator(".player-modal").waitFor({ state: "detached" });
     await playerButton.click();
