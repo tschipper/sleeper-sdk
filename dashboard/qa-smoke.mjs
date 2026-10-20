@@ -47,6 +47,9 @@ try {
   await page.waitForFunction(() => typeof state !== "undefined" && Object.keys(state.schedule || {}).length > 0, null, { timeout: 20000 });
   assert.ok(await page.locator("#team option").count() > 1, "team selector should populate");
   assert.ok((await page.locator("#content").innerText()).trim().length > 20, "initial team page should render");
+  await page.waitForFunction(() => /finishing stats and projections|teams · refreshed|Could not load data/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
+  const initialStatus = (await page.locator("#status").innerText()).trim();
+  assert.ok(!/Could not load data/i.test(initialStatus), "initial dashboard load failed: " + initialStatus + "; content: " + (await page.locator("#content").innerText()).slice(0, 500));
   await page.locator(".team-identity-card").waitFor({ state: "visible", timeout: 30000 });
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
   await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
