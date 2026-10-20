@@ -55,12 +55,17 @@ try {
   await page.locator(".team-identity-card").waitFor({ state: "visible", timeout: 30000 });
   await page.waitForFunction(() => /teams · refreshed/i.test(document.querySelector("#status")?.textContent || ""), null, { timeout: 120000 });
   await page.getByText("Recent league activity", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
-  const liveDataCounts = await page.evaluate(() => ({
-    projections: Object.keys(state.weeklyProjection || {}).length,
-    seasonPpg: Object.keys(state.weeklyPPG || {}).length,
-    marketRanks: Object.values(state.marketPlayers || {}).filter(m => Number(m?.rank?.sf_dynasty ?? m?.rank?.sfDynasty ?? m?.rank?.sfDynastyRank ?? m?.rank?.sf_dynasty_rank ?? m?.sf_dynasty_rank ?? m?.sfDynastyRank) > 0).length
-  }));
+  const liveDataCounts = await page.evaluate(() => {
+    const rosteredIds = [...new Set((state.rosters || []).flatMap(roster => roster.players || []).map(String))];
+    return {
+      projections: Object.keys(state.weeklyProjection || {}).length,
+      rosteredProjections: rosteredIds.filter(id => Number.isFinite(Number(state.weeklyProjection[id]))).length,
+      seasonPpg: Object.keys(state.weeklyPPG || {}).length,
+      marketRanks: Object.values(state.marketPlayers || {}).filter(m => Number(m?.rank?.sf_dynasty ?? m?.rank?.sfDynasty ?? m?.rank?.sfDynastyRank ?? m?.rank?.sf_dynasty_rank ?? m?.sf_dynasty_rank ?? m?.sfDynastyRank) > 0).length
+    };
+  });
   assert.ok(liveDataCounts.projections > 0, "live Sleeper projection feed should produce usable player projections");
+  assert.ok(liveDataCounts.rosteredProjections > 0, "live projections should match player IDs used by the league rosters");
   assert.ok(liveDataCounts.seasonPpg > 0, "live Sleeper stats feed should produce season PPG values for ranking");
   assert.ok(liveDataCounts.marketRanks > 0, "dynasty market feed should produce rankings");
   assert.equal(await page.locator(".team-identity-card").count(), 1, "roster page should show exactly one consistent team identity card");
