@@ -192,7 +192,7 @@ function render(){
   const hasSuperflex=superflexSlots>0;
   const baseStarts={QB:slots.filter(s=>s==="QB").length,RB:slots.filter(s=>s==="RB").length,WR:slots.filter(s=>s==="WR").length,TE:slots.filter(s=>s==="TE").length};
   const idpSlots=slots.filter(s=>["IDP_FLEX","FLEX_IDP","DL","LB","DB","DE","DT","CB","S","EDGE","NT"].includes(s)).length;
-  const targets={QB:Math.max(3,baseStarts.QB+(hasSuperflex?2:1)),RB:Math.max(5,baseStarts.RB+flexSlots+2),WR:Math.max(5,baseStarts.WR+flexSlots+2),TE:Math.max(2,baseStarts.TE+1),IDP:Math.max(4,idpSlots+2)};
+  const targets={QB:Math.max(3,baseStarts.QB+superflexSlots+1),RB:Math.max(5,baseStarts.RB+Math.ceil(flexSlots/2)+2),WR:Math.max(5,baseStarts.WR+Math.ceil(flexSlots/2)+2),TE:Math.max(2,baseStarts.TE+Math.max(1,Math.floor(flexSlots/3))),IDP:Math.max(4,idpSlots+2)};
   const needScore=rawPos=>{const pos=normalizePos(rawPos),target=targets[pos]||2,have=counts[pos]||0,starting=starterCounts[pos]||0,required=pos==="IDP"?idpSlots:(baseStarts[pos]||0);const depthGap=Math.max(0,(target-have)/target);const starterGap=Math.max(0,(required-starting)/Math.max(1,required));const injuryPressure=Math.min(.5,(injuredCounts[pos]||0)*.16);return Math.round(Math.max(0,Math.min(100,depthGap*55+starterGap*30+injuryPressure*30)))};
   const free=[];
   for(const [id,p] of Object.entries(state.players)){
@@ -217,7 +217,7 @@ function render(){
    if(state.waiverMode==="rookie"&&(!(value>0)||!(dynastyRankOf(market)>0&&dynastyRankOf(market)<=500)))continue;
    const need=needScore(playerPos);
    const projection=Number(state.weeklyProjection[String(id)]),ppg=Number(state.weeklyPPG[String(id)]);
-   const productionScore=Math.max(0,Math.min(100,(Number.isFinite(projection)?projection:Number.isFinite(ppg)?ppg:0)*3));
+   const productionScore=Math.max(0,Math.min(100,(Number.isFinite(ppg)&&ppg>0?ppg:0)*3));const projectionScore=Math.max(0,Math.min(100,(Number.isFinite(projection)&&projection>0?projection:0)*5));
    const draftYear=Number(p.draft_year)||0,draftRound=Number(p.draft_round)||0,draftPick=Number(p.draft_pick)||0,draftedBy=p.draft_team||p.drafted_by||"",draftTotal=draftYear?Math.max(0,...Object.values(state.players).filter(q=>Number(q?.draft_year)===draftYear).map(q=>Number(q?.draft_pick)||0)):0,collegePPG=Number(p.college_ppg??p.college_points_per_game??p.college_stats?.ppg);const depthOrder=Number(p.depth_chart_order)||99;const roleScore=Math.max(0,Math.min(100,(depthOrder<99?Math.max(0,6-depthOrder)*18:0)+(p.team?20:0)));
    const prospectAge=Number(market?.age??p.age);const ageScore=Number.isFinite(prospectAge)?Math.max(0,Math.min(100,100-Math.max(0,prospectAge-20)*8)):45;const developmentScore=Math.round(marketScore*.35+roleScore*.25+productionScore*.15+ageScore*.25);
    const marketRank=dynastyRankOf(market)||0;
@@ -229,7 +229,7 @@ function render(){
    const breakoutLabel=breakoutScore>=75?"High":breakoutScore>=55?"Medium":breakoutScore>=35?"Low":"Unlikely";
    const breakoutReason=depthOrder===1?"Top of depth chart":depthOrder===2?"Second on depth chart":depthOrder===3?"Needs an opening":depthOrder<99?"Buried on depth chart":"Depth chart data unavailable";
    const depthScore=depthOrder<99?Math.max(0,Math.min(100,110-depthOrder*18)):0;
-   const pickupScore=Math.round(need*.25+productionScore*.25+Math.max(0,Math.min(100,(Number.isFinite(projection)&&projection>0?projection:0)*5))*.35+depthScore*.10+marketScore*.05);
+   const pickupScore=Math.round(need*.30+productionScore*.25+projectionScore*.25+depthScore*.15+marketScore*.05);
    const addCount=Number(state.trendingAdds[String(id)])||0,dropCount=Number(state.trendingDrops[String(id)])||0;
    const trend=addCount?"Sleeper adds in last 24 hours: "+addCount:dropCount?"Sleeper drops in last 24 hours: "+dropCount:"No top-100 add/drop trend";
    const trendIcon=addCount>0?"↗":dropCount>0?"↘":"";
