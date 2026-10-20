@@ -514,16 +514,16 @@ async function load(){
   const [rosters,users]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);if(!current())return;
   state.league=league;state.rosters=rosters;state.users=users;
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];
-  try{state.drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");await Promise.all(state.drafts.map(async d=>{try{state.draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){state.draftPicks[d.draft_id]=[]}}))}catch(e){diag("Draft history unavailable: "+e.message)}
-  try{state.tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks")}catch(e){state.tradedPicks=[]}
-  try{const tx=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+(i+1)).catch(()=>[])));state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40)}catch(e){state.transactions=[]}
+  try{state.drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");await Promise.all(state.drafts.map(async d=>{try{state.draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){state.draftPicks[d.draft_id]=[]}}))}catch(e){diag("Draft history unavailable: "+e.message)}if(!current())return;
+  try{state.tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks")}catch(e){state.tradedPicks=[]}if(!current())return;
+  try{const tx=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+(i+1)).catch(()=>[])));state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40)}catch(e){state.transactions=[]}if(!current())return;
   $("#team").innerHTML=rosters.map(r=>'<option value="'+r.roster_id+'">'+esc(rosterName(r))+'</option>').join("");
   if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
   $("#team").value=state.selectedRoster;
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
-  try{const [adds,drops]=await Promise.all([getJSON("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100"),getJSON("https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=100")]);state.trendingAdds=Object.fromEntries((adds||[]).map(x=>[String(x.player_id),Number(x.count)||0]));state.trendingDrops=Object.fromEntries((drops||[]).map(x=>[String(x.player_id),Number(x.count)||0]))}catch(err){state.trendingAdds={};state.trendingDrops={};diag("Sleeper trending data unavailable: "+err.message)}
-  try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}
+  try{const [adds,drops]=await Promise.all([getJSON("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100"),getJSON("https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=100")]);state.trendingAdds=Object.fromEntries((adds||[]).map(x=>[String(x.player_id),Number(x.count)||0]));state.trendingDrops=Object.fromEntries((drops||[]).map(x=>[String(x.player_id),Number(x.count)||0]))}catch(err){state.trendingAdds={};state.trendingDrops={};diag("Sleeper trending data unavailable: "+err.message)}if(!current())return;
+  try{const market=await getJSON("https://api.statsguyfantasy.com/api/v1/players?tep=blend");state.marketPlayers=Object.fromEntries((market.players||[]).map(p=>[String(p.id),p]));state.marketAsOf=market.valuesAsOf?.sf_dynasty||"";state.marketError=""}catch(err){state.marketError=err.message}if(!current())return;
   state.schedule={};
   try{
    const nflStateForSchedule=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
@@ -536,12 +536,12 @@ async function load(){
     if(!home||!away)continue;
     for(const team of [home,away])state.schedule[team]={home,away,date:event.date,state:event.status?.type?.state||event.status?.type?.name||""};
    }
-  }catch(err){diag("Schedule unavailable: "+err.message)}
-  const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));
+  }catch(err){diag("Schedule unavailable: "+err.message)}if(!current())return;
+  const nflState=await getJSON("https://api.sleeper.app/v1/state/nfl").catch(()=>({}));if(!current())return;
    // Prefer display_week because it represents the week currently shown in Sleeper's UI.
    const week=Number(nflState.display_week)||Number(nflState.week)||1;
    state.nflWeek=week;if(!state.matchupWeek)state.matchupWeek=week;
-   try{state.matchups=await getJSON("https://api.sleeper.app/v1/league/"+id+"/matchups/"+state.matchupWeek)}catch(e){state.matchups=[]}
+   try{state.matchups=await getJSON("https://api.sleeper.app/v1/league/"+id+"/matchups/"+state.matchupWeek)}catch(e){state.matchups=[]}if(!current())return;
    state.weeklyActual={};
    // Fetch actual points for the current NFL display week, independently of the matchup-page week selector.
    try{
@@ -550,8 +550,8 @@ async function load(){
      const playerPoints=matchup?.players_points||matchup?.starters_points||{};
      for(const [pid,value] of Object.entries(playerPoints)){const points=Number(value);if(Number.isFinite(points))state.weeklyActual[String(pid)]=points;}
     }
-   }catch(err){diag("Actual points unavailable: "+err.message)}
-  const season=Number(nflState.season)||new Date().getFullYear();try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}
+   }catch(err){diag("Actual points unavailable: "+err.message)}if(!current())return;
+  const season=Number(nflState.season)||new Date().getFullYear();try{const research=await getJSON("https://api.sleeper.com/players/nfl/research/regular/"+season+"/"+week);const rows=Array.isArray(research)?research.map(x=>[String(x.player_id??x.playerId??x.id??""),x]):Object.entries(research||{});state.playerResearch=Object.fromEntries(rows.filter(([id,row])=>id&&row&&typeof row==="object").map(([id,row])=>[id,row]));diag("Sleeper research rows parsed="+Object.keys(state.playerResearch).length)}catch(err){state.playerResearch={};diag("Sleeper player research unavailable: "+err.message)}if(!current())return;
   const recPoints=Number(league.scoring_settings?.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
   const leagueScoring=league.scoring_settings||{};
   const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
@@ -636,10 +636,9 @@ async function load(){
    diag("Projection weeks loaded="+Object.keys(state.weeklyProjectionHistory).filter(w=>Object.keys(state.weeklyProjectionHistory[w]||{}).length).length);
    captureOriginalProjections(id,season,week);
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
-  }catch(err){diag("Projection ERROR: "+err.message)}
+  }catch(err){diag("Projection ERROR: "+err.message)}if(!current())return;
   diag("Player dictionary IDs="+Object.keys(state.players).length+"; PPG IDs="+Object.keys(state.weeklyPPG).length+"; projection IDs="+Object.keys(state.weeklyProjection).length);
-  try{const usageData=await getJSON("./data/usage-trends.json");state.usageTrends=Number(usageData?.season)===Number(league.season)?(usageData.players||{}):{};diag("Usage trend rows loaded="+Object.keys(state.usageTrends).length)}catch(e){state.usageTrends={};diag("Usage trend data unavailable: "+e.message)}
-  if(!current())return;status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
+  try{const usageData=await getJSON("./data/usage-trends.json");state.usageTrends=Number(usageData?.season)===Number(league.season)?(usageData.players||{}):{};diag("Usage trend rows loaded="+Object.keys(state.usageTrends).length)}catch(e){state.usageTrends={};diag("Usage trend data unavailable: "+e.message)}if(!current())return;status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
   render();
  }catch(e){if(!current())return;status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
 }
