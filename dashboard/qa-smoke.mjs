@@ -238,10 +238,10 @@ try {
   if (await playerButton.count()) {
     await playerButton.click();
     await page.locator(".player-modal").waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText("Dynasty rank:", { exact: true }).waitFor({ state: "visible" });
+    await page.getByText("Fantasy PPG rank:", { exact: true }).waitFor({ state: "visible" });
     await page.getByText("Sleeper:", { exact: true }).waitFor({ state: "visible" });
     const summaryLines = await page.locator(".player-summary-line").allInnerTexts();
-    assert.match(summaryLines[0] || "", /Dynasty rank:.*Overall/, "player details should show position and overall PPG ranks on one concise line");
+    assert.match(summaryLines[0] || "", /Fantasy PPG rank:.*Overall/, "player details should label position and overall fantasy PPG ranks clearly");
     assert.match(summaryLines[0] || "", /#1.*Overall #1/, "the displayed ranks should follow season PPG even when the dynasty market rank conflicts");
     assert.match(summaryLines[1] || "", /Sleeper:.*rostered.*started/, "player details should show rostered and started percentages on one concise line");
     assert.equal(summaryLines.length, 3, "player details should keep the summary to rank, Sleeper usage, and weekly PPG lines");
