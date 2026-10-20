@@ -434,7 +434,7 @@ function renderTrades(content){
   else {for(const pick of myPicks.slice(0,8))for(const theirP of theirPlayers)addPickTrade(partner,[pick],[theirP]);for(const own of myPicks.slice(0,6))for(const theirs of theirPicks.slice(0,6))addPickTrade(partner,[own],[theirs]);}
  }
  const seen=new Set(),unique=suggestions.filter(s=>{const key=String(s.partner.roster_id)+"|"+s.send.map(x=>x.id).join(",")+"|"+s.get.map(x=>x.id).join(",");if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>a.gap-b.gap||b.activity.score-a.activity.score).slice(0,8);
- const playerNames=a=>a.map(x=>(x.pick?esc(x.label):esc(playerName(x.id)))+" <span class=\"pill\">"+Math.round(x.value).toLocaleString()+"</span>").join(" + ");
+ const playerNames=a=>a.map(x=>x.pick?esc(x.label):esc(playerName(x.id))).join(" + ");
  const viewOptions=[["combined","Combined"],["starter","Starter value"],["depth","Roster depth"]].map(([id,label])=>'<option value="'+id+'">'+label+'</option>').join("");
  const mt=state.manualTrade||(state.manualTrade={a:String(team.roster_id),b:String(state.rosters.find(t=>String(t.roster_id)!==String(team.roster_id))?.roster_id||team.roster_id),give:[],get:[]});
  const mAssets=rid=>{const tm=state.rosters.find(t=>String(t.roster_id)===String(rid));const ps=(tm?.players||[]).map(id=>{const m=state.marketPlayers[String(id)]||{},raw=m.value?.sf_dynasty??m.value?.sfDynasty??m.sf_dynasty??m.sfDynasty??(typeof m.value==="number"||typeof m.value==="string"?m.value:null),v=Number(raw);return{id:String(id),name:playerName(String(id)),v:Number.isFinite(v)&&v>0?v:0}});return ps.concat(picksFor(rid).map(p=>({id:p.id,name:p.label,v:p.value,p:{position:"PICK"},pick:p.pick})))};
