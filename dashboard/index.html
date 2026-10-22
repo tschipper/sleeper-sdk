@@ -312,7 +312,7 @@ function render(){
   const slots=(state.league?.roster_positions||[]).filter(s=>!["BN","IR","TAXI","RESERVE"].includes(String(s).toUpperCase()));
   const canonical=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,"");
   const eligible=(slot,id)=>{const p=state.players[id]||{},p0=p.position||"",s=canonical(slot);if(["QB","RB","WR","TE","K","DEF"].includes(s))return p0===s;if(["FLEX","RECFLEX"].includes(s))return ["RB","WR","TE"].includes(p0);if(s==="WRRBFLEX")return ["RB","WR"].includes(p0);if(s==="SUPERFLEX")return ["QB","RB","WR","TE"].includes(p0);if(["IDPFLEX","FLEXIDP"].includes(s))return ["IDP","DL","LB","DB","DE","DT","CB","S","EDGE","NT"].includes(p0);return false};
-  const candidates=all.map(id=>({id,p:state.players[id]||{},proj:lineupProjection(id)})).filter(x=>Number.isFinite(x.proj));
+  const reserveIds=new Set((reserve||[]).map(String));const candidates=all.map(id=>({id,p:state.players[id]||{},proj:lineupProjection(id)})).filter(x=>!reserveIds.has(String(x.id))&&Number.isFinite(x.proj));
   const ordered=slots.map((slot,i)=>({slot,i,options:candidates.filter(x=>eligible(slot,x.id)).length})).sort((a,b)=>a.options-b.options||a.i-b.i);
   const used=new Set(),optimalLineup=Array(slots.length).fill(null);
   for(const s of ordered){const best=candidates.filter(x=>!used.has(String(x.id))&&eligible(s.slot,x.id)).sort((a,b)=>b.proj-a.proj)[0];if(best){used.add(String(best.id));optimalLineup[s.i]={...best,slot:s.slot,index:s.i}}else optimalLineup[s.i]={id:null,proj:null,slot:s.slot,index:s.i}}
