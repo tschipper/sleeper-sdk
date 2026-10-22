@@ -132,6 +132,8 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 .league-usage-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-bottom:12px!important}.league-usage-cards .card{padding:10px!important;min-width:0}.league-usage-cards .value{font-size:20px!important;line-height:1.2}.league-usage-cards .kicker{font-size:10px;line-height:1.25}
 .activity-row{padding:10px 0;border-bottom:1px solid var(--line);min-width:0}.activity-row:last-child{border-bottom:0}.activity-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}.activity-row-head strong{font-size:13px;line-height:1.3}.activity-row-head span{font-size:10px;color:var(--muted);white-space:nowrap}.activity-row .sub{margin-top:4px;overflow-wrap:anywhere}
 .trade-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.trade-actions button{flex:1 1 140px;min-width:0}.trade-actions .secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+
+.fp-modal-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px}.fp-modal{width:min(100%,520px);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 20px 60px #0008}.fp-modal h2{margin:0 0 8px;font-size:20px}.fp-modal p{font-size:13px;color:var(--muted)}.fp-modal input{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:46px}.fp-actions{display:flex;gap:8px;margin-top:12px}.fp-actions button{flex:1}.fp-test-status{font-size:13px;padding:9px 0;overflow-wrap:anywhere}.fp-test-status[data-state="ok"]{color:var(--green)}.fp-test-status[data-state="error"]{color:var(--red)}
 </style>
 </head>
 <body>
@@ -142,6 +144,8 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
   <div><label for="team">Team</label><select id="team"><option value="">Loading teams…</option></select></div>
 </div>
 <button class="primary" id="refresh">↻ Refresh league data</button>
+<div style="margin-top:8px"><button id="fantasypros-open" type="button">FantasyPros API · Set up</button></div>
+<div id="fantasypros-modal" class="fp-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="fp-modal-title"><div class="fp-modal"><h2 id="fp-modal-title">FantasyPros API</h2><p>Enter your free API key to test access to consensus rankings. The key is stored only in this browser’s local storage and is not written to GitHub. This is a browser-side prototype, not a secure production secret store.</p><label for="fantasypros-key">API key</label><input id="fantasypros-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste FantasyPros API key"><div class="fp-actions"><button id="fantasypros-save" type="button">Save on this device</button><button id="fantasypros-test" class="primary" type="button">Test API</button></div><div id="fantasypros-test-status" class="fp-test-status" role="status" aria-live="polite">Not tested yet.</div><div class="fp-actions"><button id="fantasypros-close" type="button">Close</button></div></div></div>
 <div class="status" id="status" role="status">Ready to load your league.</div>
 <nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="matchup">Matchup</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button><button data-tab="draft">Draft</button></nav>
 <div id="content"></div>
@@ -725,6 +729,18 @@ async function load(){
   render();
  }catch(e){if(!current())return;status("Could not load data: "+e.message+". Check your connection and try Refresh.");$("#content").innerHTML='<div class="section"><div class="empty">If this persists, the browser may be blocking Sleeper API requests. We can add a small backend if needed.</div></div>'}
 }
+const FANTASYPROS_KEY_STORAGE="sleeper_gm_fantasypros_key_v1";
+const fpModal=$("#fantasypros-modal"),fpInput=$("#fantasypros-key"),fpStatus=$("#fantasypros-test-status");
+function openFantasyPros(){fpInput.value=localStorage.getItem(FANTASYPROS_KEY_STORAGE)||"";fpStatus.textContent="Not tested yet.";fpStatus.dataset.state="";fpModal.hidden=false;fpInput.focus()}
+function closeFantasyPros(){fpModal.hidden=true}
+function saveFantasyProsKey(){const key=fpInput.value.trim();if(!key){localStorage.removeItem(FANTASYPROS_KEY_STORAGE);fpStatus.textContent="Saved key cleared from this browser.";fpStatus.dataset.state="";return}localStorage.setItem(FANTASYPROS_KEY_STORAGE,key);fpStatus.textContent="Key saved on this device only. Test the connection to confirm access.";fpStatus.dataset.state=""}
+async function testFantasyPros(){const key=fpInput.value.trim();if(!key){fpStatus.textContent="Enter your API key first.";fpStatus.dataset.state="error";return}fpStatus.textContent="Testing FantasyPros rankings access…";fpStatus.dataset.state="";const button=$("#fantasypros-test");button.disabled=true;try{const url="https://api.fantasypros.com/public/v2/json/nfl/"+new Date().getFullYear()+"/consensus-rankings?position=QB&scoring=PPR";const response=await fetch(url,{headers:{"x-api-key":key,Accept:"application/json"}});let payload=null;try{payload=await response.json()}catch{}if(!response.ok)throw new Error("HTTP "+response.status+(payload?.message?": "+payload.message:"")+(payload?.error?": "+payload.error:""));const players=Array.isArray(payload?.players)?payload.players:[];if(!players.length)throw new Error("The API responded, but no QB rankings were returned. Check the key and free-tier access.");localStorage.setItem(FANTASYPROS_KEY_STORAGE,key);fpStatus.textContent="Connection successful — received "+players.length+" QB rankings for "+(payload.season||new Date().getFullYear())+". Key saved on this device only.";fpStatus.dataset.state="ok"}catch(err){fpStatus.textContent="Test failed: "+(err?.message||"Unknown error")+". If the message mentions CORS or a network error, the browser may be blocking direct API access; we’ll need a small backend proxy.";fpStatus.dataset.state="error"}finally{button.disabled=false}}
+$("#fantasypros-open").addEventListener("click",openFantasyPros);
+$("#fantasypros-close").addEventListener("click",closeFantasyPros);
+$("#fantasypros-save").addEventListener("click",saveFantasyProsKey);
+$("#fantasypros-test").addEventListener("click",testFantasyPros);
+fpModal.addEventListener("click",e=>{if(e.target===fpModal)closeFantasyPros()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!fpModal.hidden)closeFantasyPros()});
 $("#league").addEventListener("change",()=>{state.selectedRoster="";state.manualTrade=null;state.expandedMatchupTeams={};state.matchupWeek=0;state.matchupView="mine";state.cutSuggestionFor="";load()});
 $("#team").addEventListener("change",e=>{state.selectedRoster=e.target.value;state.manualTrade=null;render()});
 $("#refresh").addEventListener("click",load);
