@@ -144,8 +144,6 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
   <div><label for="team">Team</label><select id="team"><option value="">Loading teams…</option></select></div>
 </div>
 <button class="primary" id="refresh">↻ Refresh league data</button>
-<div style="margin-top:8px"><button id="fantasypros-open" type="button">FantasyPros API · Set up</button></div>
-<div id="fantasypros-modal" class="fp-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="fp-modal-title"><div class="fp-modal"><h2 id="fp-modal-title">FantasyPros API</h2><p>Enter your free API key to test access to consensus rankings. The key is stored only in this browser’s local storage and is not written to GitHub. This is a browser-side prototype, not a secure production secret store.</p><label for="fantasypros-key">API key</label><input id="fantasypros-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste FantasyPros API key"><div class="fp-actions"><button id="fantasypros-save" type="button">Save on this device</button><button id="fantasypros-test" class="primary" type="button">Test API</button></div><div id="fantasypros-test-status" class="fp-test-status" role="status" aria-live="polite">Not tested yet.</div><div class="fp-actions"><button id="fantasypros-close" type="button">Close</button></div></div></div>
 <div class="status" id="status" role="status">Ready to load your league.</div>
 <nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="matchup">Matchup</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button><button data-tab="draft">Draft</button></nav>
 <div id="content"></div>
