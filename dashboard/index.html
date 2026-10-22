@@ -529,7 +529,7 @@ async function loadProspects(force=false){
     const composite=get(p,["composite","value","devy_value","devyValue","score","overall_value"]);
     const why=["Tradyr devy board",composite!==null?"composite value "+composite:""].filter(Boolean).join(" · ");
     const scoreNum=Number(composite); const nflTeam=get(p,["nfl_team","nflTeam","draft_team","draftTeam","pro_team","proTeam"]); return {name:String(name||""),pos,school:String(school||"College not listed"),rank:Number.isFinite(rankNum)&&rankNum>0?rankNum:i+1,score:composite!==null&&Number.isFinite(scoreNum)?scoreNum:null,composite:composite!==null&&Number.isFinite(scoreNum)?scoreNum:null,nflTeam:nflTeam?String(nflTeam):"",why,source:"Tradyr"};
-   }).filter(p=>p.name&&["QB","RB","WR","TE"].includes(p.pos));
+   }).filter(p=>p.name&&["QB","RB","WR","TE"].includes(p.pos)).sort((a,b)=>a.rank-b.rank||a.name.localeCompare(b.name)).slice(0,50);
    if(!state.prospects.length)throw new Error("Tradyr responded, but no rows had usable names and QB/RB/WR/TE positions");
    state.prospectMeta=payload?.meta||null; state.prospectStatus="loaded";
   }catch(err){state.prospects=[];state.prospectStatus="error";state.prospectError=err?.message||"Unknown error";state.prospectLoadPromise=null}
