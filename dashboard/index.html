@@ -165,12 +165,15 @@ async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(ur
 function normalizePos(pos){const value=String(pos||"").toUpperCase();return ["DL","LB","DB","DE","DT","CB","S","EDGE","NT","IDP"].includes(value)?"IDP":value}
 function normalizeRankingName(value){return String(value||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\b(jr|sr|ii|iii|iv)\b/g," ").replace(/\s+/g," ").trim()}
 async function loadTradyrRankings(){
+ const cacheKey="sleeper_gm_tradyr_rankings_v1",ttl=24*60*60*1000;
+ try{const cached=JSON.parse(localStorage.getItem(cacheKey)||"null");if(cached&&Date.now()-Number(cached.savedAt)<ttl&&Array.isArray(cached.dynasty)&&Array.isArray(cached.rookie)){state.tradyrRankings={dynasty:cached.dynasty,rookie:cached.rookie,asOf:cached.asOf||"",error:""};return}}catch(e){}
  try{
   const results=await Promise.all([getJSON("https://api.tradyr.app/v1/rankings/dynasty-superflex"),getJSON("https://api.tradyr.app/v1/rankings/rookie")]);
   const rows=payload=>Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:Array.isArray(payload?.rankings)?payload.rankings:[]);
   const dynasty=rows(results[0]),rookie=rows(results[1]);
   if(!dynasty.length&&!rookie.length)throw new Error("Tradyr returned no ranking rows");
-  state.tradyrRankings={dynasty,rookie,asOf:results[0]?.meta?.generatedAt||results[1]?.meta?.generatedAt||"",error:""};
+  const asOf=results[0]?.meta?.generatedAt||results[1]?.meta?.generatedAt||"";state.tradyrRankings={dynasty,rookie,asOf,error:""};
+  try{localStorage.setItem(cacheKey,JSON.stringify({dynasty,rookie,asOf,savedAt:Date.now()}))}catch(e){}
  }catch(err){state.tradyrRankings={dynasty:[],rookie:[],asOf:"",error:err?.message||"Ranking feed unavailable"}}
 }
 function hasMarketValues(){return Object.values(state.marketPlayers||{}).some(m=>{const raw=m?.value?.sf_dynasty??m?.value?.sfDynasty??m?.sf_dynasty??m?.sfDynasty??(typeof m?.value==="number"||typeof m?.value==="string"?m.value:null),value=Number(raw);return Number.isFinite(value)&&value>0})}
