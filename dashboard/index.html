@@ -320,7 +320,7 @@ function render(){
   const optimalIds=new Set(optimalLineup.filter(x=>x&&x.id!=null).map(x=>String(x.id)));
   const currentIds=new Set(starters.map(String));
   const gameLocked=id=>{const p=state.players[String(id)]||{},g=scheduleForTeam(p.team)||null;if(!g)return false;const status=String(g.state||"").toLowerCase();if(["in","live","final","complete","completed"].includes(status))return true;const kickoff=g.date?new Date(g.date).getTime():NaN;return Number.isFinite(kickoff)&&kickoff<=Date.now()};
-  const outgoing=starters.filter(id=>!optimalIds.has(String(id))&&!gameLocked(id)).map(id=>({id,slot:currentSlotMap[String(id)],proj:state.weeklyProjection[String(id)]}));
+  const outgoing=starters.filter(id=>!optimalIds.has(String(id))&&!gameLocked(id)).map(id=>({id,slot:currentSlotMap[String(id)],proj:lineupProjection(id)}));
   const incoming=optimalLineup.filter(x=>x&&x.id!=null&&!currentIds.has(String(x.id))&&!gameLocked(x.id));
   const swaps=[];
   for(const candidate of incoming){const out=outgoing.filter(x=>eligible(x.slot,candidate.id)&&Number.isFinite(x.proj)&&Number.isFinite(candidate.proj)&&candidate.proj>x.proj).sort((a,b)=>a.proj-b.proj)[0];if(out){swaps.push({slot:out.slot,in:candidate,out,gain:candidate.proj-out.proj});outgoing.splice(outgoing.indexOf(out),1)}}
