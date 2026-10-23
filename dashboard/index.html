@@ -530,20 +530,38 @@ const leagueUsageHtml='<div class="profile-rank-grid"><div class="profile-rank-c
  }
  body.innerHTML='<h3 style="font-size:15px">Fantasy player news</h3><div class="empty">Looking up fantasy news for '+esc(name)+'…</div>';
  try{
-  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\\s+/g," ").trim();
   const full=norm(name),last=norm(p.last_name||name.split(" ").slice(-1)[0]);
   let espnId=p.espn_id||p.espnId||p.fantasy_data_id||null;
-  if(!espnId){try{const search=await fetch("https://site.web.api.espn.com/apis/search/v2?region=us&lang=en&limit=20&page=1&query="+encodeURIComponent(name));if(search.ok){const sd=await search.json(),matches=[];const walk=o=>{if(!o||typeof o!=="object")return;if(Array.isArray(o)){o.forEach(walk);return}const nm=norm(o.displayName||o.fullName||o.name||o.title),eid=o.id||o.athleteId,typ=String(o.type||o.contentType||"").toLowerCase();if(eid&&nm===full&&(typ.includes("athlete")||o.position||o.team))matches.push(String(eid));Object.values(o).forEach(walk)};walk(sd);espnId=matches[0]||null}}catch(e){}}
-  let data=null,playerSpecificFeed=false;
-  if(espnId){const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=50&playerId="+encodeURIComponent(String(espnId)));if(res.ok){data=await res.json();playerSpecificFeed=true}}
-  if(!data){const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100");if(res.ok)data=await res.json()}
-  if(!data)throw new Error("ESPN Fantasy news feed unavailable");
-  const pool=Array.isArray(data)?data:Array.isArray(data.feed)?data.feed:Array.isArray(data.items)?data.items:Array.isArray(data.articles)?data.articles:[];
-  const seen=new Set();
-  const articles=pool.filter(a=>{const title=a.headline||a.title||a.story?.headline||"",desc=a.description||a.summary||a.story?.description||a.text||"",link=a.links?.web?.href||a.link?.href||a.url||a.links?.api?.news?.href||"",t=norm([title,desc,a.player?.fullName,a.playerName,a.athlete?.displayName].join(" ")),words=t.split(" "),matches=(espnId&&String(a.playerId||a.player?.id||a.athlete?.id||"")===String(espnId))||t.includes(full)||(last.length>3&&words.includes(last));if(!title||seen.has(title+link)||(!matches&&!playerSpecificFeed))return false;seen.add(title+link);return true}).slice(0,10);
-  const html=articles.map(a=>{const title=a.headline||a.title||a.story?.headline,link=a.links?.web?.href||a.link?.href||a.url||a.links?.api?.news?.href||"https://www.espn.com/fantasy/football/",desc=a.description||a.summary||a.story?.description||a.text||"",date=a.published||a.lastModified||a.date;return '<a href="'+esc(link)+'" target="_blank" rel="noopener" class="history-row" style="display:block;text-decoration:none;color:var(--text);margin:8px 0"><strong>'+esc(title)+'</strong>'+(desc?'<div class="sub" style="margin-top:4px">'+esc(desc)+'</div>':'')+(date?'<div class="sub">'+esc(formatNewsDate(date))+'</div>':'')+'<div style="color:var(--accent);font-size:12px;margin-top:4px">Read fantasy update ↗</div></a>'}).join("");
-  body.innerHTML=leagueUsageHtml+'<div class="sub">Source: ESPN Fantasy · <a href="https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players" target="_blank" rel="noopener" style="color:var(--accent)">Fantasy news feed ↗</a></div>'+(p.injury_status?'<div class="history-row"><span>Sleeper injury status</span><strong>'+esc(p.injury_status)+'</strong></div>':'')+(html||'<div class="empty">No player-specific articles were returned by ESPN for '+esc(name)+'. Try another news source below; this does not mean there are no updates.</div>')+'<div style="margin-top:12px"><a href="https://www.fantasypros.com/nfl/player-news.php" target="_blank" rel="noopener" style="color:var(--accent)">FantasyPros player news ↗</a> · <a href="https://www.google.com/search?q='+encodeURIComponent('"'+name+'" fantasy football news')+'" target="_blank" rel="noopener" style="color:var(--accent)">Search player ↗</a></div>';
- }catch(e){body.innerHTML=leagueUsageHtml+'<div class="empty">Could not load fantasy player news ('+esc(e?.message||"feed unavailable")+').</div>'+(p.injury_status?'<div class="sub">Sleeper injury status: '+esc(p.injury_status)+'</div>':'')+'<a href="https://www.fantasypros.com/nfl/player-news.php" target="_blank" rel="noopener" style="color:var(--accent)">Open FantasyPros player news ↗</a>'}
+  if(!espnId){try{const search=await fetch("https://site.web.api.espn.com/apis/search/v2?region=us&lang=en&limit=20&page=1&query="+encodeURIComponent(name));if(search.ok){const sd=await search.json(),matches=[];const walk=o=>{if(!o||typeof o!=="object")return;if(Array.isArray(o)){o.forEach(walk);return}const nm=norm(o.displayName||o.fullName||o.name||o.title),eid=o.id||o.athleteId,typ=String(o.type||o.contentType||"").toLowerCase();if(eid&&nm===full&&(typ.includes("athlete")||o.position||o.team))matches.push(String(eid));Object.values(o).forEach(walk)};walk(sd);espnId=matches[0]||null}}catch(e){}
+  }
+  const collected=[],sourceErrors=[];
+  const addArticles=(payload,source,playerSpecific=false)=>{
+   const pool=Array.isArray(payload)?payload:Array.isArray(payload?.feed)?payload.feed:Array.isArray(payload?.items)?payload.items:Array.isArray(payload?.articles)?payload.articles:[];
+   for(const a of pool){
+    const title=a.headline||a.title||a.story?.headline||"",desc=a.description||a.summary||a.story?.description||a.text||"",link=a.links?.web?.href||a.link?.href||a.url||a.links?.api?.news?.href||"",published=a.published||a.lastModified||a.pubDate||a.date||"",t=norm([title,desc,a.player?.fullName,a.playerName,a.athlete?.displayName].join(" ")),words=t.split(" "),matches=(espnId&&String(a.playerId||a.player?.id||a.athlete?.id||"")===String(espnId))||t.includes(full)||(last.length>3&&words.includes(last));
+    if(!title||(!matches&&!playerSpecific))continue;
+    collected.push({title,desc,link:link||"https://www.espn.com/fantasy/football/",published,source});
+   }
+  };
+  // ESPN's player-specific feed is best for injury and practice updates.
+  if(espnId){try{const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=50&playerId="+encodeURIComponent(String(espnId)));if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy",true)}catch(e){sourceErrors.push("ESPN player feed: "+(e.message||"unavailable"))}}
+  try{const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100");if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy")}catch(e){sourceErrors.push("ESPN news feed: "+(e.message||"unavailable"))}
+  // Google News RSS is an independent source; if browser CORS blocks it, the other feeds still render.
+  try{
+   const query='"'+name+'" NFL fantasy football';
+   const res=await fetch("https://news.google.com/rss/search?q="+encodeURIComponent(query)+"&hl=en-US&gl=US&ceid=US:en");
+   if(!res.ok)throw new Error("HTTP "+res.status);
+   const xml=new DOMParser().parseFromString(await res.text(),"application/xml");
+   if(xml.querySelector("parsererror"))throw new Error("Invalid RSS response");
+   const items=[...xml.querySelectorAll("item")].map(item=>({title:item.querySelector("title")?.textContent||"",description:item.querySelector("description")?.textContent||"",link:item.querySelector("link")?.textContent||"",pubDate:item.querySelector("pubDate")?.textContent||""}));
+   addArticles({items:items.map(a=>({title:a.title,description:a.description,link:{href:a.link},pubDate:a.pubDate}))},"Google News");
+  }catch(e){sourceErrors.push("Google News: "+(e.message||"unavailable"))}
+  const seen=new Set(),articles=collected.filter(a=>{const key=norm(a.title)+"|"+a.link;if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>{const da=new Date(a.published).getTime(),db=new Date(b.published).getTime();return (Number.isFinite(db)?db:0)-(Number.isFinite(da)?da:0)}).slice(0,12);
+  const html=articles.map(a=>'<a href="'+esc(a.link)+'" target="_blank" rel="noopener" class="history-row" style="display:block;text-decoration:none;color:var(--text);margin:8px 0"><strong>'+esc(a.title)+'</strong>'+(a.desc?'<div class="sub" style="margin-top:4px">'+esc(a.desc.replace(/<[^>]*>/g," ").replace(/\\s+/g," ").trim())+'</div>':'')+(a.published?'<div class="sub">'+esc(formatNewsDate(a.published))+'</div>':'')+'<div class="sub">Source: '+esc(a.source)+'</div><div style="color:var(--accent);font-size:12px;margin-top:4px">Read article ↗</div></a>').join("");
+  const sources='<div class="sub">News sources: ESPN Fantasy and Google News (sources appear when their feeds are accessible).</div>';
+  const fallback='<div class="empty">'+(articles.length?"":"No articles could be loaded from the available feeds. Try these direct sources: ")+'<a href="https://www.fantasypros.com/nfl/player-news.php" target="_blank" rel="noopener" style="color:var(--accent)">FantasyPros ↗</a> · <a href="https://www.google.com/search?q='+encodeURIComponent('"'+name+'" fantasy football news')+'" target="_blank" rel="noopener" style="color:var(--accent)">Search '+esc(name)+' ↗</a>'+(sourceErrors.length?'<div class="sub">Some feeds were unavailable in this browser.</div>':'')+'</div>';
+  body.innerHTML=leagueUsageHtml+sources+(p.injury_status?'<div class="history-row"><span>Sleeper injury status</span><strong>'+esc(p.injury_status)+'</strong></div>':'')+(html||fallback);
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.querySelector(".player-modal-backdrop"))closePlayerModal()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-player]");if(!b)return;const panel=b.dataset.panel||(b.classList.contains("player-name-open")?"news":"");if(panel)openPlayerPanel(b.dataset.player,panel)});
