@@ -326,7 +326,7 @@ function render(){
  const playerAge=id=>{const p=state.players[String(id)]||{},m=state.marketPlayers[String(id)]||{},a=Number(m.age??p.age);return Number.isFinite(a)&&a>0?a:null};
  const rosterValue=ids=>ids.reduce((sum,id)=>sum+playerMarketValue(id),0);
  const strength=rosterValue(all);
- const teamOutlook=team=>{const ids=(team.players||[]).map(String),value=rosterValue(ids);let youngValue=0,ageValue=0,agedValue=0;for(const id of ids){const v=playerMarketValue(id),age=playerAge(id);if(age!==null){ageValue+=age*v;agedValue+=v;if(age<=25)youngValue+=v}}return {id:String(team.roster_id),value,youngValue,youngShare:value?youngValue/value:0,weightedAge:agedValue?ageValue/agedValue:null}};
+ const teamOutlook=team=>{const ids=(team.players||[]).map(String),value=rosterValue(ids);let youngValue=0,ageValue=0,agedValue=0,rookieValue=0,rookieCount=0,rookieProduction=0,productionCount=0;for(const id of ids){const v=playerMarketValue(id),age=playerAge(id),p=state.players[id]||{},exp=Number(p.years_exp),hasExp=p.years_exp!==null&&p.years_exp!==undefined&&String(p.years_exp).trim()!=="";const isRookie=(hasExp&&Number.isFinite(exp)&&exp>=0&&exp<=1)||(Number(p.rookie_year)===Number(state.league?.season||new Date().getFullYear()));if(age!==null){ageValue+=age*v;agedValue+=v;if(age<=25)youngValue+=v}if(isRookie){rookieValue+=v;rookieCount++;const ppg=Number(state.weeklyPPG[id]);if(Number.isFinite(ppg)&&ppg>0){rookieProduction+=ppg;productionCount++}}}return {id:String(team.roster_id),value,youngValue,youngShare:value?youngValue/value:0,weightedAge:agedValue?ageValue/agedValue:null,rookieValue,rookieShare:value?rookieValue/value:0,rookieCount,rookieProduction:productionCount?rookieProduction/productionCount:0}};
  const outlooks=state.rosters.map(teamOutlook);
  const currentOutlook=outlooks.find(x=>x.id===String(r.roster_id))||teamOutlook(r);
  const leagueValues=outlooks.slice().sort((a,b)=>a.value-b.value);
@@ -337,9 +337,10 @@ function render(){
  const youthValues=outlooks.map(x=>x.youngShare).sort((a,b)=>a-b);
  const youthRank=youthValues.filter(x=>x<=currentOutlook.youngShare).length-1;
  const youthPercentile=youthValues.length>1?Math.round(Math.max(0,youthRank)/(youthValues.length-1)*100):50;
- const futureScore=Math.round(percentile*.7+youthPercentile*.3);
- const futureLabel=futureScore>=80?"Excellent":futureScore>=60?"Good":futureScore>=40?"Average":"Concerning";
- const futureDetail=(currentOutlook.youngShare>=.45?"Strong young core":currentOutlook.youngShare>=.25?"Some young dynasty assets":"Value concentrated in older/prime assets")+(currentOutlook.weightedAge!==null?" · Value-weighted age "+currentOutlook.weightedAge.toFixed(1):" · Age data limited");
+ const rookieShares=outlooks.map(x=>x.rookieShare).sort((a,b)=>a-b),rookieRank=rookieShares.filter(x=>x<=currentOutlook.rookieShare).length-1,rookiePercentile=rookieShares.length>1?Math.round(Math.max(0,rookieRank)/(rookieShares.length-1)*100):50,rookieProductionValues=outlooks.map(x=>x.rookieProduction).sort((a,b)=>a-b),productionRank=rookieProductionValues.filter(x=>x<=currentOutlook.rookieProduction).length-1,rookieProductionPercentile=rookieProductionValues.length>1?Math.round(Math.max(0,productionRank)/(rookieProductionValues.length-1)*100):50;
+ const futureScore=Math.round(percentile*.5+youthPercentile*.2+rookiePercentile*.2+rookieProductionPercentile*.1);
+ const futureLabel=futureScore>=80?"Excellent":futureScore>=65?"Good":futureScore>=45?"Average":"Concerning";
+ const futureDetail=(currentOutlook.rookieCount>=3?"Rookie depth: "+currentOutlook.rookieCount+" young players":currentOutlook.rookieCount?"Rookie assets: "+currentOutlook.rookieCount+" young player(s)":"Few identified rookies")+(currentOutlook.youngShare>=.45?" · Strong young core":currentOutlook.youngShare>=.25?" · Some young dynasty assets":" · Value concentrated in older/prime assets")+(currentOutlook.weightedAge!==null?" · Value-weighted age "+currentOutlook.weightedAge.toFixed(1):"");
  const selectedLineupWeek=state.matchupWeek||state.nflWeek||1;const lineupProjection=id=>state.weeklyProjectionHistory?.[selectedLineupWeek]?.[String(id)]??(Number(selectedLineupWeek)===Number(state.nflWeek)?state.weeklyProjection[String(id)]:undefined);const projectedStarterPoints=starters.reduce((sum,id)=>sum+(Number.isFinite(lineupProjection(id))?lineupProjection(id):0),0);
  const rebuildLabel=futureLabel;
  const strengthLabel=Number(currentOutlook.value)>0?"Roster market value":"Market values unavailable";
