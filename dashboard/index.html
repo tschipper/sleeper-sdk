@@ -159,7 +159,7 @@ function captureOriginalProjections(leagueId,season,week){const all=readOriginal
 
 function status(s){$("#status").textContent=s;const menuCurrent=$("#menu-current");if(menuCurrent){const leagueLabel=state.league?.name||$("#league")?.selectedOptions?.[0]?.textContent||"League";const team=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));menuCurrent.textContent=team?leagueLabel+" · "+rosterName(team):leagueLabel}}
 function diag(s){console.info("[Sleeper GM]",s)}
-async function getJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(url+" → HTTP "+r.status);return r.json()}
+async function getJSON(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:"no-store"});if(!r.ok)throw new Error(url+" → HTTP "+r.status);return await r.json()}catch(err){if(err?.name==="AbortError")throw new Error("Request timed out after 12 seconds: "+url);throw err}finally{clearTimeout(timer)}}
 function normalizeKtcName(v){return String(v||"").toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9 ]/g," ").replace(/\b(jr|sr|ii|iii|iv|v)\b/g," ").replace(/\s+/g," ").trim()}
 async function loadKtcValues(){if(Object.keys(state.ktcPlayers||{}).length)return;try{const data=await getJSON("data/ktc/latest.json");const list=Array.isArray(data.players)?data.players:[];state.ktcPlayers=Object.fromEntries(list.filter(p=>p&&p.name).map(p=>[normalizeKtcName(p.name),p]));state.ktcAsOf=data.date||"";state.ktcError="";diag("KTC snapshot loaded: "+list.length+" assets · "+state.ktcAsOf)}catch(err){state.ktcError=err.message;diag("KTC snapshot unavailable: "+err.message)}}
 function ktcForPlayer(id){const p=state.players[String(id)]||{};return state.ktcPlayers[normalizeKtcName(playerName(id))]||state.ktcPlayers[normalizeKtcName(p.full_name)]||null}
@@ -601,7 +601,7 @@ async function load(){
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
   const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(!current())return;
-  await Promise.all(Object.keys(leagueNames).map(async leagueId=>{try{const data=leagueId===id?league:await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not load name for league "+leagueId+": "+err.message)}}));
+  await Promise.all(Object.keys(leagueNames).filter(leagueId=>leagueId!==id).map(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not load name for league "+leagueId+": "+err.message)}}));if(league?.name){leagueNames[id]=league.name;const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name}
   const [rosterResponse,userResponse]=await Promise.all([getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),getJSON("https://api.sleeper.app/v1/league/"+id+"/users")]);if(!current())return;
   // Sleeper responses should contain roster objects, but guard against null or malformed entries before rendering.
   const rosters=Array.isArray(rosterResponse)?rosterResponse.filter(r=>r&&typeof r==="object"&&r.roster_id!=null):[];
