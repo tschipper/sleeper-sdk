@@ -552,9 +552,13 @@ const panelSwitchHtml='<div class="player-panel-switch" style="display:flex;gap:
   jobs.push((async()=>{try{const res=await fetchNewsWithTimeout("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100");if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy")}catch(e){sourceErrors.push("ESPN news feed: "+(e.message||"unavailable"))}})());
   jobs.push((async()=>{try{
    const query='"'+name+'" NFL fantasy football';
-   const res=await fetchNewsWithTimeout("https://news.google.com/rss/search?q="+encodeURIComponent(query)+"&hl=en-US&gl=US&ceid=US:en");
-   if(!res.ok)throw new Error("HTTP "+res.status);
-   const xml=new DOMParser().parseFromString(await res.text(),"application/xml");
+   const rssUrl="https://news.google.com/rss/search?q="+encodeURIComponent(query)+"&hl=en-US&gl=US&ceid=US:en";
+   let rssText="",googleError=null;
+   for(const feedUrl of [rssUrl,"https://api.allorigins.win/raw?url="+encodeURIComponent(rssUrl),"https://corsproxy.io/?url="+encodeURIComponent(rssUrl)]){
+    try{const res=await fetchNewsWithTimeout(feedUrl,7000);if(!res.ok)throw new Error("HTTP "+res.status);const text=await res.text();if(!text.includes("<item")&&!text.includes("<rss"))throw new Error("Response was not RSS");rssText=text;break}catch(e){googleError=e}
+   }
+   if(!rssText)throw googleError||new Error("Google News feed unavailable");
+   const xml=new DOMParser().parseFromString(rssText,"application/xml");
    if(xml.querySelector("parsererror"))throw new Error("Invalid RSS response");
    const items=[...xml.querySelectorAll("item")].map(item=>({title:item.querySelector("title")?.textContent||"",description:item.querySelector("description")?.textContent||"",link:item.querySelector("link")?.textContent||"",pubDate:item.querySelector("pubDate")?.textContent||""}));
    addArticles({items:items.map(a=>({title:a.title,description:a.description,link:{href:a.link},pubDate:a.pubDate}))},"Google News");
