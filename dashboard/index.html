@@ -546,7 +546,24 @@ const panelSwitchHtml='<div class="player-panel-switch" style="display:flex;gap:
  const rotoBallerSearch="https://www.google.com/search?q="+encodeURIComponent('site:rotoballer.com "'+name+'" NFL news');
  const fantasyProsUrl="https://www.fantasypros.com/nfl/player-news.php";
  const fantasyProsSearch="https://www.google.com/search?q="+encodeURIComponent('site:fantasypros.com/nfl/player-news/ "'+name+'"');
- body.innerHTML=leagueUsageHtml+panelSwitchHtml+'<h3 style="font-size:15px">Player News</h3><p class="sub">Choose a source for the latest updates on '+esc(name)+'. RotoBaller offers direct in-app feeds through a licensed partner integration.</p><div class="history-row" style="display:flex;flex-direction:column;gap:10px"><a href="'+rotoBallerSearch+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Search RotoBaller for '+esc(name)+' ↗</a><a href="'+rotoBallerUrl+'" target="_blank" rel="noopener" style="color:var(--accent)">Open RotoBaller Player News ↗</a><a href="'+fantasyProsUrl+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">Open FantasyPros Player News ↗</a><a href="'+fantasyProsSearch+'" target="_blank" rel="noopener" style="color:var(--accent)">Find '+esc(name)+' news on FantasyPros ↗</a></div>'+(p.injury_status?'<div class="history-row"><span>Sleeper injury status</span><strong>'+esc(p.injury_status)+'</strong></div>':'');
+ body.innerHTML=leagueUsageHtml+panelSwitchHtml+'<h3 style="font-size:15px">Player News</h3><div id="sleeper-player-news"><p class="sub">Loading recent news from Sleeper…</p></div><div class="history-row" style="display:flex;flex-direction:column;gap:10px;margin-top:12px"><a href="'+rotoBallerSearch+'" target="_blank" rel="noopener" style="color:var(--accent)">Search RotoBaller for '+esc(name)+' ↗</a><a href="'+rotoBallerUrl+'" target="_blank" rel="noopener" style="color:var(--accent)">Open RotoBaller Player News ↗</a><a href="'+fantasyProsUrl+'" target="_blank" rel="noopener" style="color:var(--accent)">Open FantasyPros Player News ↗</a><a href="'+fantasyProsSearch+'" target="_blank" rel="noopener" style="color:var(--accent)">Find '+esc(name)+' news on FantasyPros ↗</a></div>'+(p.injury_status?'<div class="history-row"><span>Sleeper injury status</span><strong>'+esc(p.injury_status)+'</strong></div>':'');
+ const newsContainer=body.querySelector("#sleeper-player-news");
+ try{
+  const response=await fetch("https://api.sleeper.com/players/nfl/"+encodeURIComponent(String(id))+"/news?limit=10",{headers:{Accept:"application/json"},credentials:"omit"});
+  if(!response.ok)throw new Error("Sleeper news request returned HTTP "+response.status);
+  const payload=await response.json();
+  if(!Array.isArray(payload))throw new Error("Sleeper returned an unexpected news response");
+  if(!newsContainer||!back.isConnected)return;
+  const items=payload.map(item=>{
+   const meta=item?.metadata||{},title=meta.title||item.title||item.headline||"Player update",description=meta.description||item.description||item.summary||"",analysis=meta.analysis||item.analysis||"",url=meta.url||meta.link||item.url||item.link||"",source=item.source||meta.source||"Sleeper news",published=item.published||item.created||meta.published||meta.created||null;
+   const stamp=Number(published),date=published?(Number.isFinite(stamp)&&stamp>0?new Date(stamp>1e12?stamp:stamp*1000).toLocaleString():String(published)):"";
+   return {title,description,analysis,url,source,date};
+  }).filter(item=>item.title||item.description||item.analysis);
+  if(!items.length){newsContainer.innerHTML='<p class="sub">Sleeper did not return recent news for '+esc(name)+'. Try the source links below.</p>';return}
+  newsContainer.innerHTML=items.map(item=>'<article class="history-row" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><strong>'+esc(item.title)+'</strong>'+(item.url&&(item.url.startsWith("https://")||item.url.startsWith("http://"))?'<a href="'+esc(item.url)+'" target="_blank" rel="noopener" style="white-space:nowrap;color:var(--accent)">Read ↗</a>':'')+'</div><div class="sub" style="margin:4px 0 8px">'+esc(item.source)+(item.date?' · '+esc(item.date):'')+'</div>'+(item.description?'<p style="margin:0 0 8px">'+esc(item.description)+'</p>':'')+(item.analysis?'<p style="margin:0">'+esc(item.analysis)+'</p>':'')+'</article>').join("");
+ }catch(error){
+  if(newsContainer&&back.isConnected)newsContainer.innerHTML='<p class="sub">Could not load Sleeper player news directly in this browser. Use the source links below. ('+esc(error.message||"Request failed")+')</p>';
+ }
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.querySelector(".player-modal-backdrop"))closePlayerModal()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-player]");if(!b)return;const panel=b.dataset.panel||(b.classList.contains("player-name-open")?"news":"");if(panel)openPlayerPanel(b.dataset.player,panel)});
