@@ -790,7 +790,7 @@ async function load(){
    // Ask Sleeper for each week separately so the player modal can show weekly projection values when available.
    state.weeklyProjectionHistory={};
    state.weeklyProjectionHistory[week]={...state.weeklyProjection};
-   const priorProjectionWeeks=await Promise.all(Array.from({length:Math.min(18,week+3)},(_,i)=>i+1).filter(projectionWeek=>projectionWeek!==week).map(async historicalWeek=>{
+   const priorProjectionWeeksPromise=Promise.all(Array.from({length:Math.min(18,week+3)},(_,i)=>i+1).filter(projectionWeek=>projectionWeek!==week).map(async historicalWeek=>{
     try{
      const historical=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+historicalWeek+"?season_type=regular");
      const historicalEntries=feedEntries(historical);
@@ -808,10 +808,15 @@ async function load(){
      return [historicalWeek,byPlayer];
     }catch(err){diag("Historical projections unavailable for week "+historicalWeek+": "+err.message);return [historicalWeek,{}]}
    }));
-   if(!current())return;for(const [historicalWeek,byPlayer] of priorProjectionWeeks)state.weeklyProjectionHistory[historicalWeek]=byPlayer;
-   diag("Projection weeks loaded="+Object.keys(state.weeklyProjectionHistory).filter(w=>Object.keys(state.weeklyProjectionHistory[w]||{}).length).length);
    captureOriginalProjections(id,season,week);
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
+   // Historical projections are supplementary; do not make the initial dashboard wait for them.
+   priorProjectionWeeksPromise.then(priorProjectionWeeks=>{
+    if(!current())return;
+    for(const [historicalWeek,byPlayer] of priorProjectionWeeks)state.weeklyProjectionHistory[historicalWeek]=byPlayer;
+    diag("Historical projection weeks loaded="+Object.keys(state.weeklyProjectionHistory).filter(w=>Object.keys(state.weeklyProjectionHistory[w]||{}).length).length);
+    render();
+   }).catch(err=>diag("Historical projections background load failed: "+err.message));
   }catch(err){diag("Projection ERROR: "+err.message)}if(!current())return;
   diag("Player dictionary IDs="+Object.keys(state.players).length+"; PPG IDs="+Object.keys(state.weeklyPPG).length+"; projection IDs="+Object.keys(state.weeklyProjection).length);
   try{const usageData=await getJSON("./data/usage-trends.json");state.usageTrends=Number(usageData?.season)===Number(league.season)?(usageData.players||{}):{};diag("Usage trend rows loaded="+Object.keys(state.usageTrends).length)}catch(e){state.usageTrends={};diag("Usage trend data unavailable: "+e.message)}if(!current())return;status((league.name||leagueNames[id]||"League")+" loaded · "+rosters.length+" teams · refreshed "+new Date().toLocaleTimeString());
