@@ -590,7 +590,7 @@ function renderTrades(content){
  }).sort((a,b)=>(Number(b.partner.fit)||0)-(Number(a.partner.fit)||0)||a.gap-b.gap||b.activity.score-a.activity.score).slice(0,8);
  const playerNames=a=>a.map(x=>x.pick?esc(x.label):esc(playerName(x.id))+rookieIcon(x.id)).join(" + ");
  const tradeWhy=s=>{
-  const myNeedSet=new Set(mine.needs),mySurplusSet=new Set(mine.surplus),partnerNeedSet=new Set(s.partner.needs||[]),partnerSurplusSet=new Set(s.partner.surplus||[]);
+  const myNeedSet=new Set(mine.needs),mySurplusSet=new Set(mine.surplus),partnerAssessment=assess(positionStats(s.partner)),partnerNeedSet=new Set(partnerAssessment.needs||[]),partnerSurplusSet=new Set(partnerAssessment.surplus||[]);
   const positionsOf=assets=>assets.filter(x=>!x.pick).map(x=>normalizePos(x.p?.position)).filter(Boolean);
   const givePos=positionsOf(s.send),getPos=positionsOf(s.get);
   const positionNames={QB:"QB",RB:"RB",WR:"WR",TE:"TE"};
@@ -599,7 +599,7 @@ function renderTrades(content){
   const myGiveSurplus=[...new Set(givePos.filter(p=>mySurplusSet.has(p)))];
   const partnerGiveSurplus=[...new Set(getPos.filter(p=>partnerSurplusSet.has(p)))];
   const myFit=myIncomingNeeds.length?"Your roster need: adds "+myIncomingNeeds.map(p=>positionNames[p]||p).join("/")+" depth.":getPos.length?"Your roster fit: adds "+getPos.map(p=>positionNames[p]||p).join("/")+"; check whether that improves your starters or bench.":"Your roster fit: converts player value into draft capital.";
-  const partnerFit=partnerIncomingNeeds.length?" "+rosterName(s.partner.t)+" needs "+partnerIncomingNeeds.map(p=>positionNames[p]||p).join("/")+" help.":givePos.length?" "+rosterName(s.partner.t)+" receives "+givePos.map(p=>positionNames[p]||p).join("/")+" assets.":" "+rosterName(s.partner.t)+" receives draft capital.";
+  const partnerFit=partnerIncomingNeeds.length?" "+rosterName(s.partner)+" needs "+partnerIncomingNeeds.map(p=>positionNames[p]||p).join("/")+" help.":givePos.length?" "+rosterName(s.partner)+" receives "+givePos.map(p=>positionNames[p]||p).join("/")+" assets.":" "+rosterName(s.partner)+" receives draft capital.";
   const surplusNote=myGiveSurplus.length?" You give from your "+myGiveSurplus.map(p=>positionNames[p]||p).join("/")+" surplus.":partnerGiveSurplus.length?" The partner gives from its "+partnerGiveSurplus.map(p=>positionNames[p]||p).join("/")+" surplus. ":"";
   const biggestGive=[...s.send].sort((a,b)=>b.value-a.value)[0],biggestGet=[...s.get].sort((a,b)=>b.value-a.value)[0],leader=s.into>s.out?biggestGet:biggestGive;
   const valueNote=s.gap<=.01?"Listed StatsGuy values are effectively even.":(s.into>s.out?"You receive ":"You give up ")+tradeAssetValueLabel(Math.abs(s.into-s.out))+" more listed StatsGuy value.";
