@@ -544,19 +544,21 @@ const leagueUsageHtml='<div class="profile-rank-grid"><div class="profile-rank-c
     collected.push({title,desc,link:link||"https://www.espn.com/fantasy/football/",published,source});
    }
   };
-  // ESPN's player-specific feed is best for injury and practice updates.
-  if(espnId){try{const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=50&playerId="+encodeURIComponent(String(espnId)));if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy",true)}catch(e){sourceErrors.push("ESPN player feed: "+(e.message||"unavailable"))}}
-  try{const res=await fetch("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100");if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy")}catch(e){sourceErrors.push("ESPN news feed: "+(e.message||"unavailable"))}
-  // Google News RSS is an independent source; if browser CORS blocks it, the other feeds still render.
-  try{
+  const fetchNewsWithTimeout=async(url,ms=7000)=>{let timer;try{return await Promise.race([fetch(url),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("request timed out")),ms)})])}finally{clearTimeout(timer)}};
+  // Fetch independent sources in parallel so one slow or blocked feed cannot prevent all news from appearing.
+  const jobs=[];
+  if(espnId)jobs.push((async()=>{try{const res=await fetchNewsWithTimeout("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=50&playerId="+encodeURIComponent(String(espnId)));if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy",true)}catch(e){sourceErrors.push("ESPN player feed: "+(e.message||"unavailable"))}})());
+  jobs.push((async()=>{try{const res=await fetchNewsWithTimeout("https://site.web.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100");if(!res.ok)throw new Error("HTTP "+res.status);addArticles(await res.json(),"ESPN Fantasy")}catch(e){sourceErrors.push("ESPN news feed: "+(e.message||"unavailable"))}})());
+  jobs.push((async()=>{try{
    const query='"'+name+'" NFL fantasy football';
-   const res=await fetch("https://news.google.com/rss/search?q="+encodeURIComponent(query)+"&hl=en-US&gl=US&ceid=US:en");
+   const res=await fetchNewsWithTimeout("https://news.google.com/rss/search?q="+encodeURIComponent(query)+"&hl=en-US&gl=US&ceid=US:en");
    if(!res.ok)throw new Error("HTTP "+res.status);
    const xml=new DOMParser().parseFromString(await res.text(),"application/xml");
    if(xml.querySelector("parsererror"))throw new Error("Invalid RSS response");
    const items=[...xml.querySelectorAll("item")].map(item=>({title:item.querySelector("title")?.textContent||"",description:item.querySelector("description")?.textContent||"",link:item.querySelector("link")?.textContent||"",pubDate:item.querySelector("pubDate")?.textContent||""}));
    addArticles({items:items.map(a=>({title:a.title,description:a.description,link:{href:a.link},pubDate:a.pubDate}))},"Google News");
-  }catch(e){sourceErrors.push("Google News: "+(e.message||"unavailable"))}
+  }catch(e){sourceErrors.push("Google News: "+(e.message||"unavailable"))}})());
+  await Promise.all(jobs);
   const seen=new Set(),articles=collected.filter(a=>{const key=norm(a.title)+"|"+a.link;if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>{const da=new Date(a.published).getTime(),db=new Date(b.published).getTime();return (Number.isFinite(db)?db:0)-(Number.isFinite(da)?da:0)}).slice(0,12);
   const html=articles.map(a=>'<a href="'+esc(a.link)+'" target="_blank" rel="noopener" class="history-row" style="display:block;text-decoration:none;color:var(--text);margin:8px 0"><strong>'+esc(a.title)+'</strong>'+(a.desc?'<div class="sub" style="margin-top:4px">'+esc(a.desc.replace(/<[^>]*>/g," ").replace(/\\s+/g," ").trim())+'</div>':'')+(a.published?'<div class="sub">'+esc(formatNewsDate(a.published))+'</div>':'')+'<div class="sub">Source: '+esc(a.source)+'</div><div style="color:var(--accent);font-size:12px;margin-top:4px">Read article ↗</div></a>').join("");
   const sources='<div class="sub">News sources: ESPN Fantasy and Google News (sources appear when their feeds are accessible).</div>';
