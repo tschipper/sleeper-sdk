@@ -845,13 +845,30 @@ async function load(){
   // standard baseline (with reception scoring allowed to be 0, 0.5, or 1).
   // Unknown/custom nonzero rules disable fallback rather than mis-scoring players.
   const defaultScoring={pass_yd:.04,pass_td:4,pass_int:-1,pass_2pt:2,rush_yd:.1,rush_td:6,rush_2pt:2,rec:1,rec_yd:.1,rec_td:6,rec_2pt:2,fum_lost:-2,fum_rec:2,fum_rec_td:6,def_td:6,sack:1,int:2,safe:2,blk_kick:2,fgm_0_19:3,fgm_20_29:3,fgm_30_39:3,fgm_40_49:4,fgm_50p:5,xpm:1,pts_allow_0:10,pts_allow_1_6:7,pts_allow_7_13:4,pts_allow_14_20:1,pts_allow_21_27:0,pts_allow_28_34:-1,pts_allow_35p:-4};
-  const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
+  const scoringMetaKeys=new Set(["pts_std","pts_half_ppr","pts_ppr","pts_idp","adp_std","adp_ppr","adp_half_ppr","pos_rank_std","pos_rank_ppr","pos_rank_half_ppr","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"]);
   const scoringKeys=Object.keys(leagueScoring).filter(key=>{const value=Number(leagueScoring[key]);return Number.isFinite(value)&&value!==0&&!scoringMetaKeys.has(key)&&!key.startsWith("adp_")&&!key.startsWith("pos_rank_")});
   const scoringFallbackSafe=scoringKeys.every(key=>key==="rec"?[0,.5,1].includes(Number(leagueScoring[key])):Object.prototype.hasOwnProperty.call(defaultScoring,key)&&Number(leagueScoring[key])===defaultScoring[key]);
   state.scoringFallbackSafe=scoringFallbackSafe;const fallbackPoints=row=>row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts;
+  const isIdpPlayer=(pid,row)=>{const candidates=[row?.position,row?.player?.position,...(Array.isArray(row?.player?.fantasy_positions)?row.player.fantasy_positions:[]),state.players[String(pid)]?.position];return candidates.some(value=>normalizePos(value)==="IDP")};
+  // Sleeper's IDP projection rows expose defensive components as idp_* fields.
+  // Score those components directly with this league's matching idp_* settings;
+  // do not use pts_std/pts_ppr as a substitute for a custom IDP scoring format.
+  const idpPointsFromStats=row=>{
+   let total=0,matched=0;
+   for(const [key,multiplierValue] of Object.entries(leagueScoring)){
+    if(!key.startsWith("idp_"))continue;
+    const multiplier=Number(multiplierValue),statRaw=row?.[key];
+    if(!Number.isFinite(multiplier)||statRaw===undefined||statRaw===null)continue;
+    const stat=Number(statRaw);if(!Number.isFinite(stat))continue;
+    total+=stat*multiplier;matched++;
+   }
+   return matched?total:null;
+  };
   const leaguePointsFromStats=row=>{
+   const idpTotal=idpPointsFromStats(row);if(idpTotal!==null)return idpTotal;
    // Start with Sleeper's published points for the closest standard reception
    // format, then adjust only for differences in this league's scoring settings.
+   // This avoids rebuilding the whole score from an incomplete stat breakdown,
    // This avoids rebuilding the whole score from an incomplete stat breakdown,
    // which can omit zero or unsupported fields and undercount players.
    const baseRaw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
@@ -921,12 +938,13 @@ async function load(){
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?{...p,...p.stats}:p;
     if(pid.startsWith("TEAM_"))continue;
-    // Use Sleeper's published projection total first. Recalculating from a partial stat
-    // breakdown can diverge from Sleeper's own projection, especially when fields are omitted.
-    // Only calculate league-specific points when the feed has no published total at all.
-    const publishedRaw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts;
+    // Keep Sleeper's published totals for offensive players. IDP players are
+    // different: when defensive stat components exist, calculate them using the
+    // league's own idp_* scoring settings instead of accepting a standard total.
+    const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
+    const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
     const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
-    const raw=publishedRaw??customPoints;
+    const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
     if(raw===undefined||raw===null){missingProjectionPoints++;continue}
     const points=Number(raw);if(!Number.isFinite(points))continue;
     state.weeklyProjection[pid]=points;projectionRows++;
@@ -942,11 +960,12 @@ async function load(){
      const byPlayer={};
      for(const [key,item] of historicalEntries){
       const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?{...item,...item.stats}:item;
-      // Keep Sleeper's published projection for the selected week; use stat-based scoring
-      // only when the response does not include a total.
-      const publishedRaw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts;
+      // Keep Sleeper's published total for offensive players. Re-score IDP stat
+      // components with the selected league's defensive scoring settings.
+      const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
+      const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
       const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
-      const raw=publishedRaw??customPoints;
+      const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
       const value=Number(raw);
       if(!pid.startsWith("TEAM_")&&raw!==undefined&&raw!==null&&Number.isFinite(value))byPlayer[pid]=value;
      }
