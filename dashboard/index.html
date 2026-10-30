@@ -869,9 +869,8 @@ async function load(){
    // Start with Sleeper's published points for the closest standard reception
    // format, then adjust only for differences in this league's scoring settings.
    // This avoids rebuilding the whole score from an incomplete stat breakdown,
-   // This avoids rebuilding the whole score from an incomplete stat breakdown,
    // which can omit zero or unsupported fields and undercount players.
-   const baseRaw=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
+   const baseRaw=row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std;
    const base=Number(baseRaw);
    if(baseRaw!==undefined&&baseRaw!==null&&Number.isFinite(base)){
     let adjusted=base,hasAdjustmentStat=false;
