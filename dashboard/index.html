@@ -197,7 +197,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 <details class="league-menu" id="league-menu"><summary><span>☰</span> League &amp; team <span class="menu-current" id="menu-current">Choose league</span></summary><div class="league-menu-panel"><div class="controls">
   <div><label for="league">League</label><select id="league"><option value="1313702361549529088">League 1</option><option value="1313937831093080064">League 2</option></select></div>
   <div><label for="team">My team</label><select id="team"><option value="">Loading teams…</option></select></div>
-</div><button class="primary" id="refresh">↻ Refresh league data</button><button type="button" class="secondary" id="change-sleeper-user" style="width:100%;margin-top:8px">Clear username / add another user</button><div class="status" id="status" role="status">Ready to load your league.</div><details id="idp-diagnostics" style="margin-top:10px"><summary style="cursor:pointer">IDP projection diagnostics</summary><button type="button" id="copy-idp-debug" style="margin:8px 0">Copy IDP diagnostics</button><span id="copy-idp-feedback" style="margin-left:8px;font-size:12px"></span><pre id="idp-debug-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:110px;overflow:auto;user-select:text;-webkit-user-select:text">Refresh league data to collect IDP projection details.</pre></details></div></details>
+</div><button class="primary" id="refresh">↻ Refresh league data</button><button type="button" class="secondary" id="change-sleeper-user" style="width:100%;margin-top:8px">Clear username / add another user</button><div class="status" id="status" role="status">Ready to load your league.</div></div></details>
 <nav aria-label="Dashboard sections"><button class="active" data-tab="team">My Team</button><button data-tab="league">League</button><button data-tab="matchup">Matchup</button><button data-tab="waivers">Waiver Wire</button><button data-tab="trades">Trade Analyzer</button><button data-tab="draft">Draft</button><button data-tab="rankings">Rankings</button><button data-tab="power">Power Rankings</button></nav>
 <div id="content"></div>
 <p class="note">League and roster data from Sleeper. Market values: <a href="https://statsguyfantasy.com" target="_blank" rel="noopener" style="color:var(--accent)">Stats Guy Fantasy</a>. Dynasty and rookie rankings: <a href="https://tradyr.app" target="_blank" rel="noopener" style="color:var(--accent)">Tradyr</a>. Pickup-fit scores are estimates, not fantasy-point projections. This app does not make roster or league changes.</p>
@@ -214,7 +214,6 @@ function captureOriginalProjections(leagueId,season,week){const all=readOriginal
 
 function status(s){$("#status").textContent=s;const menuCurrent=$("#menu-current");if(menuCurrent){const leagueLabel=state.league?.name||$("#league")?.selectedOptions?.[0]?.textContent||"League";const team=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));menuCurrent.textContent=team?leagueLabel+" · "+rosterName(team):leagueLabel}}
 function diag(s){console.info("[Sleeper GM]",s)}
-document.addEventListener("click",async e=>{if(e.target?.id!=="copy-idp-debug")return;const value=$("#idp-debug-output")?.textContent||"";const feedback=$("#copy-idp-feedback");try{await navigator.clipboard.writeText(value);if(feedback)feedback.textContent="Copied!"}catch(err){const el=$("#idp-debug-output");if(el){const range=document.createRange();range.selectNodeContents(el);window.getSelection()?.removeAllRanges();window.getSelection()?.addRange(range)}if(feedback)feedback.textContent="Text selected — tap Copy"}});
 async function getJSON(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:"no-store"});if(!r.ok)throw new Error(url+" → HTTP "+r.status);return await r.json()}catch(err){if(err?.name==="AbortError")throw new Error("Request timed out after 12 seconds: "+url);throw err}finally{clearTimeout(timer)}}
 function normalizeKtcName(v){return String(v||"").toLowerCase().replace(/&/g,"and").replace(/[^a-z0-9 ]/g," ").replace(/\b(jr|sr|ii|iii|iv|v)\b/g," ").replace(/\s+/g," ").trim()}
 async function loadKtcValues(){if(Object.keys(state.ktcPlayers||{}).length)return;try{const data=await getJSON("../data/ktc/latest.json");const list=Array.isArray(data.players)?data.players:[];state.ktcPlayers=Object.fromEntries(list.filter(p=>p&&p.name).map(p=>[normalizeKtcName(p.name),p]));state.ktcAsOf=data.date||"";state.ktcError="";diag("KTC snapshot loaded: "+list.length+" assets · "+state.ktcAsOf)}catch(err){state.ktcError=err.message;diag("KTC snapshot unavailable: "+err.message)}}
@@ -936,7 +935,7 @@ async function load(){
    const projections=await getJSON(url);if(!current())return;summarize("Projection response",projections);
    const entries=feedEntries(projections);
    const scoring=league.scoring_settings||{};
-   let projectionRows=0,missingProjectionPoints=0;const idpDiagnosticRows=[];
+   let projectionRows=0,missingProjectionPoints=0;
    for(const [key,p] of entries){
     const pid=String(p?.player_id??p?.playerId??p?.id??key),row=p?.stats&&typeof p.stats==="object"?{...p,...p.stats}:p;
     if(pid.startsWith("TEAM_"))continue;
@@ -944,8 +943,6 @@ async function load(){
     // different: when defensive stat components exist, calculate them using the
     // league's own idp_* scoring settings instead of accepting a standard total.
     const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
-    const selectedRoster=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));const myPlayerIds=new Set((selectedRoster?.players||[]).map(String));
-    if(idpPlayer&&myPlayerIds.has(pid)&&idpDiagnosticRows.length<8){const name=playerName(pid);idpDiagnosticRows.push({name,player_id:pid,calculated_idp_points:customIdpPoints,published_pts_idp:row?.pts_idp,stats:Object.fromEntries(Object.entries(row||{}).filter(([k,v])=>/^idp_|^(tkl|sack|int|ff|fum|pass_def|qb_hit|safe|blk)/i.test(k)&&v!==null&&typeof v!=="object"))});}
     const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
     const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
     const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
@@ -954,7 +951,6 @@ async function load(){
     state.weeklyProjection[pid]=points;projectionRows++;
    }
    diag("Sleeper projections parsed="+projectionRows+", missing points="+missingProjectionPoints);
-   const debugNode=$("#idp-debug-output");if(debugNode){debugNode.textContent=JSON.stringify({league_id:league.league_id,league_name:league.name,scoring_settings:Object.fromEntries(Object.entries(leagueScoring).filter(([k])=>k.startsWith("idp_"))),projection_rows:idpDiagnosticRows},null,2);}
    // Ask Sleeper for each week separately so the player modal can show weekly projection values when available.
    state.weeklyProjectionHistory={};
    state.weeklyProjectionHistory[week]={...state.weeklyProjection};
