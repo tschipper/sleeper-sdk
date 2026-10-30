@@ -943,7 +943,8 @@ async function load(){
     // different: when defensive stat components exist, calculate them using the
     // league's own idp_* scoring settings instead of accepting a standard total.
     const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
-    if(idpPlayer&&idpDiagnosticRows.length<40){const name=playerName(pid);idpDiagnosticRows.push({name,player_id:pid,position:row?.position??row?.player?.position??state.players[pid]?.position,calculated_idp_points:customIdpPoints,published_pts_idp:row?.pts_idp,published_pts_ppr:row?.pts_ppr,stats:Object.fromEntries(Object.entries(row||{}).filter(([k,v])=>/^idp_|^(tkl|sack|int|ff|fum|pass_def|qb_hit|safe|blk)/i.test(k)&&v!==null&&typeof v!=="object")),all_keys:Object.keys(row||{})});}
+    const selectedRoster=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));const myPlayerIds=new Set((selectedRoster?.players||[]).map(String));
+    if(idpPlayer&&myPlayerIds.has(pid)&&idpDiagnosticRows.length<8){const name=playerName(pid);idpDiagnosticRows.push({name,player_id:pid,calculated_idp_points:customIdpPoints,published_pts_idp:row?.pts_idp,stats:Object.fromEntries(Object.entries(row||{}).filter(([k,v])=>/^idp_|^(tkl|sack|int|ff|fum|pass_def|qb_hit|safe|blk)/i.test(k)&&v!==null&&typeof v!=="object"))});}
     const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
     const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
     const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
