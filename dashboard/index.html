@@ -393,6 +393,8 @@ function render(){
  const r=state.rosters.find(x=>String(x.roster_id)===String(state.viewRosterId||state.selectedRoster));
  if(!r){content.innerHTML='<div class="section"><div class="empty">Choose a team to view its roster.</div></div>';return}
  const starters=(r.starters||[]).map(String), reserveSet=new Set((r.reserve||[]).map(String)), taxiSet=new Set((r.taxi||[]).map(String)), all=(r.players||[]).map(String);
+ // Keep explicit arrays for roster rendering and lineup calculations.
+ const reserve=Array.from(reserveSet),taxi=Array.from(taxiSet);
  const startersSet=new Set(starters);
  const bench=all.filter(id=>!startersSet.has(id)&&!reserveSet.has(id)&&!taxiSet.has(id));
  const hasActiveBenchReplacement=(position,week)=>bench.some(id=>{const p=state.players[String(id)]||{},pos=normalizePos(p.position),availability=String(p.injury_status||p.status||"").toLowerCase();const unavailable=["out","ir","injured reserve","reserve/injured","pup","nfi","non-football injury","suspended","inactive","doubtful"].some(term=>availability.includes(term));return pos===position&&!unavailable&&!pBye(p,week)&&String(p.team||"").toUpperCase()!=="FA"});
