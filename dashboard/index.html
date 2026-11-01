@@ -206,7 +206,7 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 const $=s=>document.querySelector(s);
 const state={loadRequest:0,matchupLoadRequest:0,leagueSort:"standings",homeRosterId:"",league:null,rosters:[],users:[],players:{},marketPlayers:{},ktcPlayers:{},ktcAsOf:"",ktcError:"",tradyrRankings:{dynasty:[],rookie:[],asOf:"",error:""},usageTrends:{},weeklyPPG:{},previousYearPPG:{},weeklyProjection:{},weeklyProjectionHistory:{},weeklyActual:{},weeklyHistory:{},schedule:{},matchups:[],drafts:[],draftPicks:{},tradedPicks:[],transactions:[],historicalTransactions:[],historySeasons:[],historyStatus:"idle",trendingAdds:{},trendingDrops:{},selectedDraft:"",draftSection:"future",draftSort:"fit",draftPosition:"ALL",expandedMatchupTeams:{},matchupWeek:0,matchupView:"mine",nflWeek:1,waiverSort:"recommended",playerResearch:{},prospects:[],prospectStatus:"idle",prospectError:"",prospectMeta:null,prospectLoadPromise:null,marketAsOf:"",marketError:"",scoringFallbackSafe:true,selectedRoster:"",viewRosterId:"",showOptimalLineup:true,tab:"team",waiverPos:"ALL",waiverSearch:"",waiverMode:"today",cutSuggestionFor:"",tradeView:"combined",tradeAggressiveness:3,byeWarningsCollapsed:false,upcomingByeWarningsCollapsed:false};
 const leagueNames={"1313702361549529088":"Kings III Dynasty League","1313937831093080064":"Kings III Redraft League"};
-const ORIGINAL_PROJECTION_KEY="sleeper_gm_original_projections_v1";
+const ORIGINAL_PROJECTION_KEY="sleeper_gm_original_projections_v2";
 function readOriginalProjections(){try{return JSON.parse(localStorage.getItem(ORIGINAL_PROJECTION_KEY)||"{}")}catch(e){return {}}}
 function originalProjectionKey(leagueId,season,week,playerId){return [leagueId,season,week,playerId].map(String).join(":")}
 function getOriginalProjection(playerId,week){const pid=String(playerId),player=state.players[pid]||{};if(normalizePos(player.position)==="IDP")return undefined;const all=readOriginalProjections(),leagueId=state.league?.league_id||$("#league").value,season=state.league?.season||new Date().getFullYear(),n=all[originalProjectionKey(leagueId,season,week,pid)];return Number.isFinite(n?.points)?n.points:undefined}
@@ -978,8 +978,8 @@ async function load(){
     // league's own idp_* scoring settings instead of accepting a standard total.
     const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
     const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
-    const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
-    const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
+    const customPoints=leaguePointsFromStats(row);
+    const raw=customPoints??(idpPlayer?customIdpPoints:null)??publishedRaw;
     if(raw===undefined||raw===null){missingProjectionPoints++;continue}
     const points=Number(raw);if(!Number.isFinite(points))continue;
     state.weeklyProjection[pid]=points;projectionRows++;
@@ -999,8 +999,8 @@ async function load(){
       // components with the selected league's defensive scoring settings.
       const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
       const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
-      const customPoints=publishedRaw===undefined||publishedRaw===null?leaguePointsFromStats(row):null;
-      const raw=idpPlayer?(customIdpPoints??publishedRaw??customPoints):(publishedRaw??customPoints);
+      const customPoints=leaguePointsFromStats(row);
+      const raw=customPoints??(idpPlayer?customIdpPoints:null)??publishedRaw;
       const value=Number(raw);
       if(!pid.startsWith("TEAM_")&&raw!==undefined&&raw!==null&&Number.isFinite(value))byPlayer[pid]=value;
      }
