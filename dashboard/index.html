@@ -796,7 +796,9 @@ async function load(){
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
   const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(!current())return;
-  await Promise.all(Object.keys(leagueNames).filter(leagueId=>leagueId!==id).map(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not load name for league "+leagueId+": "+err.message)}}));if(league?.name){leagueNames[id]=league.name;const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name}
+  if(league?.name){leagueNames[id]=league.name;const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name}
+  // Refresh other league labels in the background; never block roster loading on unrelated leagues.
+  Object.keys(leagueNames).filter(leagueId=>leagueId!==id).forEach(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not refresh name for league "+leagueId+": "+err.message)}});
   const rosterResponse=await getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters");const userResponse=await getJSON("https://api.sleeper.app/v1/league/"+id+"/users").catch(err=>{diag("Sleeper user names unavailable; continuing with roster IDs: "+err.message);return []});if(!current())return;
   // Sleeper responses should contain roster objects, but guard against null or malformed entries before rendering.
   const rosters=Array.isArray(rosterResponse)?rosterResponse.filter(r=>r&&typeof r==="object"&&r.roster_id!=null):[];
