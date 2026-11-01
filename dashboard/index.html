@@ -804,16 +804,19 @@ async function load(){
   const rosters=Array.isArray(rosterResponse)?rosterResponse.filter(r=>r&&typeof r==="object"&&r.roster_id!=null):[];
   const users=Array.isArray(userResponse)?userResponse.filter(u=>u&&typeof u==="object"):[];
   if(!rosters.length)throw new Error("Sleeper returned no valid rosters for this league. Try refreshing again.");
-  state.league=league;state.rosters=rosters;state.users=users;state.marketPlayers={};state.marketAsOf="";state.marketError="";state.weeklyPPG={};state.previousYearPPG={};state.weeklyProjection={};state.weeklyProjectionHistory={};state.weeklyActual={};state.weeklyHistory={};state.playerResearch={};state.usageTrends={};state.trendingAdds={};state.trendingDrops={};state.schedule={};state.matchups=[];
+  state.league=league;state.rosters=rosters;state.users=users;
+  // Populate the team selector immediately after the essential league/roster calls.
+  // Draft, transaction, and historical endpoints are optional and must never block team selection.
+  $("#team").innerHTML=rosters.map(r=>'<option value="'+r.roster_id+'">'+esc(rosterName(r))+'</option>').join("");
+  if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
+  if(!rosters.some(r=>String(r.roster_id)===String(state.viewRosterId)))state.viewRosterId=state.selectedRoster;
+  $("#team").value=state.selectedRoster;saveSetup(id,state.selectedRoster);
+  state.marketPlayers={};state.marketAsOf="";state.marketError="";state.weeklyPPG={};state.previousYearPPG={};state.weeklyProjection={};state.weeklyProjectionHistory={};state.weeklyActual={};state.weeklyHistory={};state.playerResearch={};state.usageTrends={};state.trendingAdds={};state.trendingDrops={};state.schedule={};state.matchups=[];
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];state.historicalTransactions=[];state.historySeasons=[];state.historyStatus='loading';
   try{const drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");if(!current())return;const draftPicks={};await Promise.all(drafts.map(async d=>{try{draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){draftPicks[d.draft_id]=[]}}));if(!current())return;state.drafts=drafts;state.draftPicks=draftPicks}catch(e){if(!current())return;diag("Draft history unavailable: "+e.message)}if(!current())return;
   try{const tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks");if(!current())return;state.tradedPicks=tradedPicks}catch(e){if(!current())return;state.tradedPicks=[]}if(!current())return;
   try{const tx=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+(i+1)).catch(()=>[])));if(!current())return;state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40)}catch(e){if(!current())return;state.transactions=[]}if(!current())return;
   loadHistoricalLeagueData(id,current).catch(e=>{if(current()){state.historyStatus='error';diag('Historical league data unavailable: '+e.message)}});
-  $("#team").innerHTML=rosters.map(r=>'<option value="'+r.roster_id+'">'+esc(rosterName(r))+'</option>').join("");
-  if(!rosters.some(r=>String(r.roster_id)===String(state.selectedRoster)))state.selectedRoster=String(rosters[0]?.roster_id||"");
-  if(!rosters.some(r=>String(r.roster_id)===String(state.viewRosterId)))state.viewRosterId=state.selectedRoster;
-  $("#team").value=state.selectedRoster;saveSetup(id,state.selectedRoster);
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
   // Show the roster shell as soon as the core league and player dictionary are ready.
