@@ -795,18 +795,20 @@ async function load(){
  $("#content").innerHTML="";status("Loading league, rosters, and player data…");
  try{
   status("Connecting to Sleeper league "+id+"…");
-  const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(!current())return;
+  const [league,rosterResponse,userResponse]=await Promise.all([
+   getJSON("https://api.sleeper.app/v1/league/"+id),
+   getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters"),
+   getJSON("https://api.sleeper.app/v1/league/"+id+"/users").catch(err=>{diag("Sleeper user names unavailable; continuing with roster IDs: "+err.message);return []})
+  ]);if(!current())return;
   if(!league||!league.league_id)throw new Error("Sleeper did not return a valid league record for "+id);
   if(league?.name){leagueNames[id]=league.name;const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name}
   // Refresh other league labels in the background; never block roster loading on unrelated leagues.
   Object.keys(leagueNames).filter(leagueId=>leagueId!==id).forEach(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not refresh name for league "+leagueId+": "+err.message)}});
-  status("League found. Loading team rosters…");
-  const rosterResponse=await getJSON("https://api.sleeper.app/v1/league/"+id+"/rosters");if(!current())return;
+  status("League and rosters received. Preparing your team…");
   if(!Array.isArray(rosterResponse)||!rosterResponse.length)throw new Error("Sleeper roster endpoint returned no teams for league "+id+" (response type: "+(Array.isArray(rosterResponse)?"empty array":typeof rosterResponse)+")");
   // Show roster IDs immediately; user metadata is optional.
   $("#team").innerHTML=rosterResponse.filter(r=>r&&r.roster_id!=null).map(r=>'<option value="'+r.roster_id+'">Roster '+r.roster_id+'</option>').join("");
   status("Loaded "+rosterResponse.length+" team rosters. Loading team names…");
-  const userResponse=await getJSON("https://api.sleeper.app/v1/league/"+id+"/users").catch(err=>{diag("Sleeper user names unavailable; continuing with roster IDs: "+err.message);return []});if(!current())return;
   // Sleeper responses should contain roster objects, but guard against null or malformed entries before rendering.
   const rosters=Array.isArray(rosterResponse)?rosterResponse.filter(r=>r&&typeof r==="object"&&r.roster_id!=null):[];
   const users=Array.isArray(userResponse)?userResponse.filter(u=>u&&typeof u==="object"):[];
@@ -820,9 +822,23 @@ async function load(){
   $("#team").value=state.selectedRoster;saveSetup(id,state.selectedRoster);
   state.marketPlayers={};state.marketAsOf="";state.marketError="";state.weeklyPPG={};state.previousYearPPG={};state.weeklyProjection={};state.weeklyProjectionHistory={};state.weeklyActual={};state.weeklyHistory={};state.playerResearch={};state.usageTrends={};state.trendingAdds={};state.trendingDrops={};state.schedule={};state.matchups=[];
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];state.historicalTransactions=[];state.historySeasons=[];state.historyStatus='loading';
-  try{const drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");if(!current())return;const draftPicks={};await Promise.all(drafts.map(async d=>{try{draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){draftPicks[d.draft_id]=[]}}));if(!current())return;state.drafts=drafts;state.draftPicks=draftPicks}catch(e){if(!current())return;diag("Draft history unavailable: "+e.message)}if(!current())return;
-  try{const tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks");if(!current())return;state.tradedPicks=tradedPicks}catch(e){if(!current())return;state.tradedPicks=[]}if(!current())return;
-  try{const tx=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+(i+1)).catch(()=>[])));if(!current())return;state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40)}catch(e){if(!current())return;state.transactions=[]}if(!current())return;
+  // Optional league history is loaded in parallel after the roster shell is ready.
+  // These feeds no longer hold up the initial dashboard.
+  (async()=>{
+   try{
+    const drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");
+    if(!current())return;
+    const draftPicks={};
+    await Promise.all((Array.isArray(drafts)?drafts:[]).map(async d=>{try{draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){draftPicks[d.draft_id]=[]}}));
+    if(!current())return;state.drafts=drafts||[];state.draftPicks=draftPicks;render();
+   }catch(e){if(!current())return;diag("Draft history unavailable: "+e.message)}
+   try{const tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks");if(!current())return;state.tradedPicks=tradedPicks||[];render()}catch(e){if(!current())return;state.tradedPicks=[]}
+   const transactionWeeks=Array.from({length:18},(_,i)=>i+1);
+   const tx=await Promise.all(transactionWeeks.map(w=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+w).catch(()=>[])));
+   if(!current())return;
+   state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40);
+   render();
+  })().catch(e=>diag("Background league history load failed: "+e.message));
   loadHistoricalLeagueData(id,current).catch(e=>{if(current()){state.historyStatus='error';diag('Historical league data unavailable: '+e.message)}});
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
