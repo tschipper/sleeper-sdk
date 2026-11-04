@@ -820,9 +820,23 @@ async function load(){
   $("#team").value=state.selectedRoster;saveSetup(id,state.selectedRoster);
   state.marketPlayers={};state.marketAsOf="";state.marketError="";state.weeklyPPG={};state.previousYearPPG={};state.weeklyProjection={};state.weeklyProjectionHistory={};state.weeklyActual={};state.weeklyHistory={};state.playerResearch={};state.usageTrends={};state.trendingAdds={};state.trendingDrops={};state.schedule={};state.matchups=[];
   state.drafts=[];state.draftPicks={};state.tradedPicks=[];state.transactions=[];state.historicalTransactions=[];state.historySeasons=[];state.historyStatus='loading';
-  try{const drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");if(!current())return;const draftPicks={};await Promise.all(drafts.map(async d=>{try{draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){draftPicks[d.draft_id]=[]}}));if(!current())return;state.drafts=drafts;state.draftPicks=draftPicks}catch(e){if(!current())return;diag("Draft history unavailable: "+e.message)}if(!current())return;
-  try{const tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks");if(!current())return;state.tradedPicks=tradedPicks}catch(e){if(!current())return;state.tradedPicks=[]}if(!current())return;
-  try{const tx=await Promise.all(Array.from({length:18},(_,i)=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+(i+1)).catch(()=>[])));if(!current())return;state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40)}catch(e){if(!current())return;state.transactions=[]}if(!current())return;
+  // Optional league history is loaded in parallel after the roster shell is ready.
+  // These feeds no longer hold up the initial dashboard.
+  (async()=>{
+   try{
+    const drafts=await getJSON("https://api.sleeper.app/v1/league/"+id+"/drafts");
+    if(!current())return;
+    const draftPicks={};
+    await Promise.all((Array.isArray(drafts)?drafts:[]).map(async d=>{try{draftPicks[d.draft_id]=await getJSON("https://api.sleeper.app/v1/draft/"+d.draft_id+"/picks")}catch(e){draftPicks[d.draft_id]=[]}}));
+    if(!current())return;state.drafts=drafts||[];state.draftPicks=draftPicks;render();
+   }catch(e){if(!current())return;diag("Draft history unavailable: "+e.message)}
+   try{const tradedPicks=await getJSON("https://api.sleeper.app/v1/league/"+id+"/traded_picks");if(!current())return;state.tradedPicks=tradedPicks||[];render()}catch(e){if(!current())return;state.tradedPicks=[]}
+   const transactionWeeks=Array.from({length:18},(_,i)=>i+1);
+   const tx=await Promise.all(transactionWeeks.map(w=>getJSON("https://api.sleeper.app/v1/league/"+id+"/transactions/"+w).catch(()=>[])));
+   if(!current())return;
+   state.transactions=tx.flat().filter(t=>t&&t.status==="complete").sort((a,b)=>(Number(b.status_updated)||0)-(Number(a.status_updated)||0)).slice(0,40);
+   render();
+  })().catch(e=>diag("Background league history load failed: "+e.message));
   loadHistoricalLeagueData(id,current).catch(e=>{if(current()){state.historyStatus='error';diag('Historical league data unavailable: '+e.message)}});
   status("League loaded. Fetching player names and dynasty values…");
   if(!Object.keys(state.players).length){const players=await getJSON("https://api.sleeper.app/v1/players/nfl");if(!current())return;state.players=players}
