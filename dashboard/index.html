@@ -888,7 +888,8 @@ async function loadProspects(force=false){
 const SETUP_KEY="sleeper_gm_preferences_v1";
 function readSetup(){try{const v=JSON.parse(localStorage.getItem(SETUP_KEY)||"null");return v&&v.leagueId?{leagueId:String(v.leagueId),rosterId:String(v.rosterId||"")} :null}catch(e){return null}}
 function saveSetup(leagueId,rosterId){try{localStorage.setItem(SETUP_KEY,JSON.stringify({leagueId:String(leagueId),rosterId:String(rosterId||"")}))}catch(e){diag("Could not save league selection locally: "+e.message)}}
-async function fetchLeagueName(id){try{const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(league?.name){leagueNames[String(id)]=league.name;return league.name}}catch(e){diag("Could not fetch league name for "+id+": "+e.message)}return leagueNames[String(id)]||"League"}
+function formatLeagueLabel(league){const name=String(league?.name||"NFL league"),season=String(league?.season||"Unknown year");return name+" ("+season+")"}
+async function fetchLeagueName(id){try{const league=await getJSON("https://api.sleeper.app/v1/league/"+id);if(league?.name){const label=formatLeagueLabel(league);leagueNames[String(id)]=label;return label}}catch(e){diag("Could not fetch league name for "+id+": "+e.message)}return leagueNames[String(id)]||"League"}
 function teamLabelForSetup(roster,users){const user=(users||[]).find(u=>String(u.user_id)===String(roster.owner_id))||{},label=String(user.metadata?.team_name||user.display_name||user.username||"").trim();return label||("Roster "+roster.roster_id)}
 async function openInitialSetup(){
  const backdrop=$("#setup-backdrop"),leagueSelect=$("#setup-league"),teamSelect=$("#setup-team"),continueButton=$("#setup-continue"),error=$("#setup-error"),searchInput=$("#sleeper-user-search"),searchButton=$("#sleeper-user-search-btn"),searchStatus=$("#user-search-status"),searchStep=$("#setup-search-step"),leagueStep=$("#setup-league-step");
@@ -917,9 +918,9 @@ async function load(){
    getJSON("https://api.sleeper.app/v1/league/"+id+"/users").catch(err=>{diag("Sleeper user names unavailable; continuing with roster IDs: "+err.message);return []})
   ]);if(!current())return;
   if(!league||!league.league_id)throw new Error("Sleeper did not return a valid league record for "+id);
-  if(league?.name){leagueNames[id]=league.name;const option=$("#league option[value='"+id+"']");if(option)option.textContent=league.name}
+  if(league?.name){const label=formatLeagueLabel(league);leagueNames[id]=label;const option=$("#league option[value='"+id+"']");if(option)option.textContent=label}
   // Refresh other league labels in the background; never block roster loading on unrelated leagues.
-  Object.keys(leagueNames).filter(leagueId=>leagueId!==id).forEach(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){leagueNames[leagueId]=data.name;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=data.name}}catch(err){diag("Could not refresh name for league "+leagueId+": "+err.message)}});
+  Object.keys(leagueNames).filter(leagueId=>leagueId!==id).forEach(async leagueId=>{try{const data=await getJSON("https://api.sleeper.app/v1/league/"+leagueId);if(data?.name){const label=formatLeagueLabel(data);leagueNames[leagueId]=label;const option=$("#league option[value='"+leagueId+"']");if(option)option.textContent=label}}catch(err){diag("Could not refresh name for league "+leagueId+": "+err.message)}});
   status("League and rosters received. Preparing your team…");
   if(!Array.isArray(rosterResponse)||!rosterResponse.length)throw new Error("Sleeper roster endpoint returned no teams for league "+id+" (response type: "+(Array.isArray(rosterResponse)?"empty array":typeof rosterResponse)+")");
   // Show roster IDs immediately; user metadata is optional.
