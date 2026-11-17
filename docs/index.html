@@ -189,7 +189,41 @@ nav button.active{border-color:var(--accent);color:var(--accent);background:#102
 .matchup-league-hint{margin:0 0 12px}
 .matchup-you-label{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.06em;color:var(--accent);margin-left:4px}
 @media(max-width:700px){.matchup-league-grid{grid-template-columns:1fr}.matchup-all-card-clickable .matchup-score-header{padding:15px 12px}.matchup-all-card-clickable .matchup-team-title{font-size:13px}}
-nav.primary-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:7px;align-items:stretch;margin:10px 0 14px;position:relative}nav.primary-nav>button,nav.primary-nav .more-nav>summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;list-style:none;white-space:nowrap}nav.primary-nav>button.active{background:#1b3650;border-color:var(--accent);color:var(--text)}.nav-icon{font-size:18px;line-height:1.1;color:var(--accent)}.more-nav{position:relative;min-width:68px}.more-nav>summary::-webkit-details-marker{display:none}.more-nav[open]>summary{border-color:var(--accent);color:var(--text)}.more-nav-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:50;width:190px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px #0008}.more-nav-menu button{display:block;width:100%;min-height:42px;text-align:left;border:0;border-radius:8px;background:transparent;padding:9px 11px;font-size:13px}.more-nav-menu button:hover{background:var(--panel2)}.league-menu{margin-bottom:10px} @media(max-width:700px){main{padding-bottom:24px}nav.primary-nav{position:relative;z-index:5;left:auto;right:auto;bottom:auto;margin:10px 0 16px;padding:0;background:transparent;border:0;grid-template-columns:repeat(4,minmax(0,1fr)) 54px;gap:5px;backdrop-filter:none}nav.primary-nav>button,nav.primary-nav .more-nav>summary{min-width:0;min-height:44px;padding:5px 2px;font-size:10px;border-radius:9px}nav.primary-nav .nav-icon{font-size:15px}.more-nav-menu{bottom:auto;top:calc(100% + 7px);right:0}.league-menu{position:relative;top:auto}}</style>
+nav.primary-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:7px;align-items:stretch;margin:10px 0 14px;position:relative}nav.primary-nav>button,nav.primary-nav .more-nav>summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;list-style:none;white-space:nowrap}nav.primary-nav>button.active{background:#1b3650;border-color:var(--accent);color:var(--text)}.nav-icon{font-size:18px;line-height:1.1;color:var(--accent)}.more-nav{position:relative;min-width:68px}.more-nav>summary::-webkit-details-marker{display:none}.more-nav[open]>summary{border-color:var(--accent);color:var(--text)}.more-nav-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:50;width:190px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px #0008}.more-nav-menu button{display:block;width:100%;min-height:42px;text-align:left;border:0;border-radius:8px;background:transparent;padding:9px 11px;font-size:13px}.more-nav-menu button:hover{background:var(--panel2)}.league-menu{margin-bottom:10px} @media(max-width:700px){main{padding-bottom:24px}nav.primary-nav{position:relative;z-index:5;left:auto;right:auto;bottom:auto;margin:10px 0 16px;padding:0;background:transparent;border:0;grid-template-columns:repeat(4,minmax(0,1fr)) 54px;gap:5px;backdrop-filter:none}nav.primary-nav>button,nav.primary-nav .more-nav>summary{min-width:0;min-height:44px;padding:5px 2px;font-size:10px;border-radius:9px}nav.primary-nav .nav-icon{font-size:15px}.more-nav-menu{bottom:auto;top:calc(100% + 7px);right:0}.league-menu{position:relative;top:auto}}
+/* Player profile: deliberately compact mobile-first spacing */
+.player-modal-head{padding:11px 13px!important;gap:9px!important}
+.player-modal-head h2{font-size:19px!important}
+.player-modal-meta{gap:5px!important;margin-top:5px!important;font-size:11px!important}
+.player-meta-pill{padding:2px 7px!important;font-size:10px!important}
+.player-modal-close{min-height:34px!important;padding:5px 9px!important;font-size:12px!important}
+.player-modal-body{padding:9px!important}
+.player-modal-body>.profile-rank-grid{gap:6px!important;margin:3px 0 8px!important}
+.player-modal-body .profile-rank-card{padding:8px!important;border-radius:10px!important}
+.player-modal-body .profile-rank-card .kicker{font-size:9px!important;line-height:1.2!important;letter-spacing:.045em!important}
+.player-modal-body .profile-rank-card strong{font-size:18px!important;line-height:1.1!important;margin-top:4px!important}
+.player-modal-body .profile-rank-card .sub{font-size:10px!important;line-height:1.3!important;margin-top:3px!important}
+.player-modal-body .profile-subsection{margin-top:8px!important;padding:9px!important;border-radius:11px!important}
+.player-modal-body .profile-subsection h3{font-size:14px!important;margin:0 0 6px!important}
+.player-modal-body .profile-subsection .profile-rank-grid{gap:6px!important;margin:7px 0!important}
+.player-modal-body .profile-metric-row{gap:7px!important;padding:8px 0!important}
+.player-modal-body .profile-metric-row strong{font-size:12px!important}
+.player-modal-body .profile-metric-row .sub{font-size:10px!important;line-height:1.25!important}
+.player-modal-body .profile-metric-value{font-size:12px!important;line-height:1.25!important}
+.player-modal-body .profile-note{font-size:10px!important;line-height:1.35!important;margin-top:7px!important}
+.player-modal-body .player-panel-switch{gap:6px!important;padding-bottom:7px!important}
+.player-modal-body .player-panel-switch button{min-height:35px!important;padding:6px!important;font-size:12px!important}
+@media(max-width:420px){
+ .player-modal-backdrop{padding:5px!important;padding-top:max(5px,env(safe-area-inset-top))!important;padding-bottom:max(5px,env(safe-area-inset-bottom))!important}
+ .player-modal{border-radius:13px!important}
+ .player-modal-head{padding:9px 11px!important}
+ .player-modal-body{padding:7px!important}
+ .player-modal-body .profile-rank-grid{gap:5px!important}
+ .player-modal-body .profile-rank-card{padding:7px!important}
+ .player-modal-body .profile-rank-card strong{font-size:17px!important}
+ .player-modal-body .profile-subsection{padding:8px!important;margin-top:7px!important}
+}
+
+</style>
 </head>
 <body>
 <header><div class="wrap"><h1>🏈 Sleeper GM</h1><p>Your mobile fantasy football command center</p></div></header>
