@@ -1005,32 +1005,38 @@ async function load(){
    // Ask Sleeper for each week separately so the player modal can show weekly projection values when available.
    state.weeklyProjectionHistory={};
    state.weeklyProjectionHistory[week]={...state.weeklyProjection};
-   const priorProjectionWeeksPromise=Promise.all(Array.from({length:Math.min(18,week+3)},(_,i)=>i+1).filter(projectionWeek=>projectionWeek!==week).map(async historicalWeek=>{
+   const fetchProjectionWeek=async projectionWeek=>{
     try{
-     const historical=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+historicalWeek+"?season_type=regular");
-     const historicalEntries=feedEntries(historical);
-     const byPlayer={};
+     const historical=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+projectionWeek+"?season_type=regular");
+     const historicalEntries=feedEntries(historical),byPlayer={};
      for(const [key,item] of historicalEntries){
       const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?{...item,...item.stats}:item;
-      // Keep Sleeper's published total for offensive players. Re-score IDP stat
-      // components with the selected league's defensive scoring settings.
       const idpPlayer=isIdpPlayer(pid,row),customIdpPoints=idpPlayer?idpPointsFromStats(row):null;
       const publishedRaw=idpPlayer?(row?.pts_idp??row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts):(row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts);
-      const customPoints=leaguePointsFromStats(row);
-      const raw=customPoints??(idpPlayer?customIdpPoints:null)??publishedRaw;
-      const value=Number(raw);
+      const customPoints=leaguePointsFromStats(row),raw=customPoints??(idpPlayer?customIdpPoints:null)??publishedRaw,value=Number(raw);
       if(!pid.startsWith("TEAM_")&&raw!==undefined&&raw!==null&&Number.isFinite(value))byPlayer[pid]=value;
      }
-     return [historicalWeek,byPlayer];
-    }catch(err){diag("Historical projections unavailable for week "+historicalWeek+": "+err.message);return [historicalWeek,{}]}
-   }));
+     return [projectionWeek,byPlayer];
+    }catch(err){diag("Historical projections unavailable for week "+projectionWeek+": "+err.message);return [projectionWeek,{}]}
+   };
+   // Prioritize the next week so its projections render as soon as that request
+   // finishes, instead of waiting for every historical-week request to complete.
+   const nextProjectionWeek=week<18?week+1:null;
+   const nextProjectionPromise=nextProjectionWeek?fetchProjectionWeek(nextProjectionWeek):Promise.resolve(null);
+   const remainingProjectionWeeksPromise=Promise.all(Array.from({length:Math.min(18,week+3)},(_,i)=>i+1).filter(projectionWeek=>projectionWeek!==week&&projectionWeek!==nextProjectionWeek).map(fetchProjectionWeek));
    captureOriginalProjections(id,season,week);
    diag("Projection player rows parsed="+Object.keys(state.weeklyProjection).length);
-   // Historical projections are supplementary; do not make the initial dashboard wait for them.
-   priorProjectionWeeksPromise.then(priorProjectionWeeks=>{
+   nextProjectionPromise.then(result=>{
+    if(!current()||!result)return;
+    const [projectionWeek,byPlayer]=result;
+    state.weeklyProjectionHistory[projectionWeek]=byPlayer;
+    diag("Next-week projections loaded for week "+projectionWeek+": "+Object.keys(byPlayer).length+" players");
+    render();
+   }).catch(err=>diag("Next-week projections failed: "+err.message));
+   remainingProjectionWeeksPromise.then(weeks=>{
     if(!current())return;
-    for(const [historicalWeek,byPlayer] of priorProjectionWeeks)state.weeklyProjectionHistory[historicalWeek]=byPlayer;
-    diag("Historical projection weeks loaded="+Object.keys(state.weeklyProjectionHistory).filter(w=>Object.keys(state.weeklyProjectionHistory[w]||{}).length).length);
+    for(const [historicalWeek,byPlayer] of weeks)state.weeklyProjectionHistory[historicalWeek]=byPlayer;
+    diag("Additional projection weeks loaded="+weeks.length);
     render();
    }).catch(err=>diag("Historical projections background load failed: "+err.message));
   }catch(err){diag("Projection ERROR: "+err.message)}if(!current())return;
