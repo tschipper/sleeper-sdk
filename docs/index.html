@@ -271,6 +271,52 @@ function originalProjectionKey(leagueId,season,week,playerId){return [leagueId,s
 function getOriginalProjection(playerId,week){const pid=String(playerId),player=state.players[pid]||{};if(normalizePos(player.position)==="IDP")return undefined;const all=readOriginalProjections(),leagueId=state.league?.league_id||$("#league").value,season=state.league?.season||new Date().getFullYear(),n=all[originalProjectionKey(leagueId,season,week,pid)];return Number.isFinite(n?.points)?n.points:undefined}
 function captureOriginalProjections(leagueId,season,week){const all=readOriginalProjections(),now=Date.now();let added=0;for(const [pid,points] of Object.entries(state.weeklyProjection)){const key=originalProjectionKey(leagueId,season,week,pid);if(all[key]||!Number.isFinite(points))continue;const p=state.players[pid]||{},game=scheduleForTeam(p.team);if(!game?.date)continue;const status=String(game.state||"").toLowerCase(),kickoff=new Date(game.date).getTime();if(["in","live","post","final","complete","completed"].includes(status)||!Number.isFinite(kickoff)||kickoff<=now)continue;all[key]={points,capturedAt:new Date(now).toISOString()};added++}if(added){try{localStorage.setItem(ORIGINAL_PROJECTION_KEY,JSON.stringify(all));diag("Saved "+added+" original pregame projections")}catch(e){diag("Could not save original projections locally: "+e.message)}}}
 
+async function ensureProjectionWeek(projectionWeek){
+ const week=Number(projectionWeek),league=state.league||{},season=Number(league.season||new Date().getFullYear());
+ if(!Number.isInteger(week)||week<1||week>18)return false;
+ state.weeklyProjectionHistory=state.weeklyProjectionHistory||{};
+ if(state.weeklyProjectionHistory[week]&&Object.keys(state.weeklyProjectionHistory[week]).length)return true;
+ state.projectionLoads=state.projectionLoads||{};
+ if(state.projectionLoads[week])return state.projectionLoads[week];
+ const task=(async()=>{
+  try{
+   const data=await getJSON("https://api.sleeper.com/projections/nfl/"+season+"/"+week+"?season_type=regular");
+   const entries=feedEntries(data),byPlayer={},scoring=league.scoring_settings||{},recPoints=Number(scoring.rec??1),scoreKey=recPoints===0?"pts_std":recPoints===0.5?"pts_half_ppr":"pts_ppr";
+   const defaultScoring={pass_yd:.04,pass_td:4,pass_int:-1,pass_2pt:2,rush_yd:.1,rush_td:6,rush_2pt:2,rec:1,rec_yd:.1,rec_td:6,rec_2pt:2,fum_lost:-2,fum_rec:2,fum_rec_td:6,def_td:6,sack:1,int:2,safe:2,blk_kick:2,fgm_0_19:3,fgm_20_29:3,fgm_30_39:3,fgm_40_49:4,fgm_50p:5,xpm:1,pts_allow_0:10,pts_allow_1_6:7,pts_allow_7_13:4,pts_allow_14_20:1,pts_allow_21_27:0,pts_allow_28_34:-1,pts_allow_35p:-4};
+   const isIdp=(pid,row)=>[row?.position,row?.player?.position,...(Array.isArray(row?.player?.fantasy_positions)?row.player.fantasy_positions:[]),state.players[String(pid)]?.position].some(v=>normalizePos(v)==="IDP");
+   for(const [key,item] of entries){
+    const pid=String(item?.player_id??item?.playerId??item?.id??key),row=item?.stats&&typeof item.stats==="object"?{...item,...item.stats}:item;
+    if(pid.startsWith("TEAM_"))continue;
+    let raw=null;
+    if(isIdp(pid,row)){
+     let total=0,matched=0;
+     for(const [stat,multiplierValue] of Object.entries(scoring)){if(!stat.startsWith("idp_"))continue;const multiplier=Number(multiplierValue),value=Number(row?.[stat]);if(Number.isFinite(multiplier)&&row?.[stat]!==undefined&&row?.[stat]!==null&&Number.isFinite(value)){total+=value*multiplier;matched++}}
+     if(matched)raw=total;
+    }
+    if(raw===null){
+     const published=row?.[scoreKey]??row?.pts_ppr??row?.pts_half_ppr??row?.pts_std??row?.proj_pts??row?.projected_pts??row?.projected_points??row?.fantasy_points??row?.points??row?.pts;
+     const base=Number(published);
+     if(published!==undefined&&published!==null&&Number.isFinite(base)){
+      raw=base;
+      for(const [stat,multiplierValue] of Object.entries(scoring)){
+       const multiplier=Number(multiplierValue);if(!Number.isFinite(multiplier)||stat.startsWith("idp_")||stat.startsWith("adp_")||stat.startsWith("pos_rank_")||["pts_std","pts_half_ppr","pts_ppr","pts_idp","player_id","playerId","id","team","position","player","name","game_id","game","season","week","season_type","status","injury_status"].includes(stat))continue;
+       const baseline=stat==="rec"?(scoreKey==="pts_std"?0:scoreKey==="pts_half_ppr"?.5:1):(Object.prototype.hasOwnProperty.call(defaultScoring,stat)?defaultScoring[stat]:0),delta=multiplier-baseline;
+       if(delta&&row?.[stat]!==undefined&&row?.[stat]!==null){const value=Number(row[stat]);if(Number.isFinite(value))raw+=value*delta}
+      }
+     }
+    }
+    const points=Number(raw);if(raw!==null&&raw!==undefined&&Number.isFinite(points))byPlayer[pid]=points;
+   }
+   state.weeklyProjectionHistory[week]=byPlayer;
+   diag("On-demand Week "+week+" projections loaded: "+Object.keys(byPlayer).length+" players");
+   return Object.keys(byPlayer).length>0;
+  }catch(err){diag("On-demand projections unavailable for Week "+week+": "+err.message);return false}
+  finally{delete state.projectionLoads[week]}
+ })();
+ state.projectionLoads[week]=task;
+ return task;
+}
+
 function status(s){$("#status").textContent=s;const menuCurrent=$("#menu-current");if(menuCurrent){const leagueLabel=state.league?.name||$("#league")?.selectedOptions?.[0]?.textContent||"League";const team=state.rosters.find(r=>String(r.roster_id)===String(state.selectedRoster));menuCurrent.textContent=team?leagueLabel+" · "+rosterName(team):leagueLabel}}
 function diag(s){console.info("[Sleeper GM]",s)}
 async function getJSON(url){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{signal:controller.signal,cache:"no-store"});if(!r.ok)throw new Error(url+" → HTTP "+r.status);return await r.json()}catch(err){if(err?.name==="AbortError")throw new Error("Request timed out after 12 seconds: "+url);throw err}finally{clearTimeout(timer)}}
